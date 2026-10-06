@@ -43,6 +43,6 @@ The Supabase JavaScript client version used here requires Node.js 22 or newer; N
 
 The GitHub Actions workflow runs once daily at 04:00 UTC and can also be started manually from the Actions tab. Configure the repository variable `NEXT_PUBLIC_SUPABASE_URL` and the secret `SUPABASE_SERVICE_ROLE_KEY` before enabling it. Apply `supabase/migrations/20261006133000_grant_ingestion_service_role.sql` to projects that already applied the initial content migration; it grants the batch job database access without exposing the key to the application.
 
-The current batch covers verified OpenAI, Google DeepMind, and Mistral RSS feeds; Hacker News, Reddit, Hugging Face Daily Papers, and arXiv APIs. Every run is logged to `cron_logs`; records are deduplicated by `original_url` and inserted as pending. Other corporate sources will be added when a stable public RSS/API endpoint is available.
+The current batch covers verified OpenAI, Google DeepMind, and Mistral RSS feeds; Hacker News, Reddit, Hugging Face Daily Papers, and arXiv APIs. Transient network errors, HTTP 408/425/429, and server errors receive up to two retries with exponential backoff and `Retry-After` support. Every run is logged to `cron_logs`; records are deduplicated by `original_url` and inserted as pending. Other corporate sources will be added when a stable public RSS/API endpoint is available.
 
 Run locally with `npm run ingest` (set `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` in `.env.local`). Run parser tests with `npm run test:ingestion`.

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { FeedKind } from "../src/lib/database.types.ts";
-import { parseXmlFeed, runIngestion } from "./ingest.ts";
+import { fetchWithRetry, parseXmlFeed, runIngestion } from "./ingest.ts";
 
 const now = new Date("2026-10-06T12:00:00.000Z");
 const feed = {
@@ -62,11 +62,76 @@ test("rejects malformed XML that does not contain feed entries", () => {
   );
 });
 
+test("retries transient server responses using Retry-After and reports recovered attempts", async () => {
+  let attempts = 0;
+  const waits: number[] = [];
+  const result = await fetchWithRetry(
+    new URL("https://example.com/feed.xml"),
+    {},
+    async (_input, init) => {
+      attempts += 1;
+      assert.ok(init?.signal);
+      return attempts === 1
+        ? new Response("temporarily unavailable", {
+            status: 503,
+            headers: { "retry-after": "0" },
+          })
+        : new Response("feed", { status: 200 });
+    },
+    async (delayMs) => {
+      waits.push(delayMs);
+    },
+  );
+
+  assert.equal(result.response.status, 200);
+  assert.equal(result.retries, 1);
+  assert.equal(attempts, 2);
+  assert.deepEqual(waits, [0]);
+});
+
+test("does not retry permanent client errors", async () => {
+  let attempts = 0;
+  const result = await fetchWithRetry(
+    new URL("https://example.com/feed.xml"),
+    {},
+    async () => {
+      attempts += 1;
+      return new Response("not found", { status: 404 });
+    },
+    async () => {
+      assert.fail("Permanent client errors should not be retried.");
+    },
+  );
+
+  assert.equal(result.response.status, 404);
+  assert.equal(result.retries, 0);
+  assert.equal(attempts, 1);
+});
+
+test("caps transient retries at two retries after the initial request", async () => {
+  let attempts = 0;
+  const result = await fetchWithRetry(
+    new URL("https://example.com/feed.xml"),
+    {},
+    async () => {
+      attempts += 1;
+      return new Response("temporarily unavailable", { status: 503 });
+    },
+    async () => {},
+  );
+
+  assert.equal(result.response.status, 503);
+  assert.equal(result.retries, 2);
+  assert.equal(attempts, 3);
+});
+
 test("runs all feed adapters, deduplicates URLs, inserts pending entries, and logs telemetry", async () => {
   const originalFetch = globalThis.fetch;
   const originalUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const originalKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const nowSeconds = Math.floor(now.getTime() / 1000);
+  let openAiAttempts = 0;
+  const completedRuns: Record<string, unknown>[] = [];
 
   process.env.NEXT_PUBLIC_SUPABASE_URL = "https://project.example";
   process.env.SUPABASE_SERVICE_ROLE_KEY = "test-service-key";
@@ -78,6 +143,7 @@ test("runs all feed adapters, deduplicates URLs, inserts pending entries, and lo
         return Response.json([{ id: "test-run-id" }]);
       }
       if (url.pathname.endsWith("/cron_logs") && init?.method === "PATCH") {
+        completedRuns.push(JSON.parse(String(init.body)) as Record<string, unknown>);
         return new Response(null, { status: 204 });
       }
       if (url.pathname.endsWith("/entries") && init?.method === "POST") {
@@ -132,6 +198,12 @@ test("runs all feed adapters, deduplicates URLs, inserts pending entries, and lo
         },
       ]);
     }
+    if (url.hostname === "openai.com" && openAiAttempts++ === 0) {
+      return new Response("temporarily unavailable", {
+        status: 503,
+        headers: { "retry-after": "0" },
+      });
+    }
 
     return new Response(
       `<rss version="2.0"><channel><item>
@@ -149,7 +221,15 @@ test("runs all feed adapters, deduplicates URLs, inserts pending entries, and lo
     assert.equal(summary.feedsParsed, 9);
     assert.equal(summary.entriesFound, 9);
     assert.equal(summary.entriesInserted, 5);
-    assert.deepEqual(summary.anomalies, []);
+    assert.deepEqual(summary.anomalies, [
+      {
+        feed: "openai",
+        message: "Feed recovered after 1 retry.",
+        severity: "warning",
+      },
+    ]);
+    assert.equal(completedRuns[0]?.status, "succeeded");
+    assert.equal(completedRuns[0]?.anomaly_count, 1);
   } finally {
     globalThis.fetch = originalFetch;
     if (originalUrl === undefined) {

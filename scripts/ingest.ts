@@ -21,11 +21,13 @@ type FeedDefinition = {
 
 type FeedResult = {
   entries: IngestionEntry[];
+  retries: number;
 };
 
 type FeedAnomaly = {
   feed: string;
   message: string;
+  severity: "warning" | "error";
 };
 
 type CronRunStatus = "succeeded" | "partial" | "failed";
@@ -404,13 +406,81 @@ function requestUrl(feed: FeedDefinition, now: Date): URL {
   return url;
 }
 
+const maximumFeedAttempts = 3;
+const maximumRetryAfterMs = 10_000;
+
+function retryDelay(response: Response, failedAttempt: number): number {
+  const retryAfter = response.headers.get("retry-after");
+  if (retryAfter) {
+    const seconds = Number(retryAfter);
+    const retryAt = Date.parse(retryAfter);
+    const requestedDelay = Number.isFinite(seconds)
+      ? seconds * 1000
+      : Number.isNaN(retryAt)
+        ? null
+        : retryAt - Date.now();
+    if (requestedDelay !== null && requestedDelay >= 0) {
+      return Math.min(requestedDelay, maximumRetryAfterMs);
+    }
+  }
+  return 1000 * 2 ** (failedAttempt - 1);
+}
+
+function isRetryableStatus(status: number): boolean {
+  return status === 408 || status === 425 || status === 429 || status >= 500;
+}
+
+export async function fetchWithRetry(
+  url: URL,
+  init: Omit<RequestInit, "signal">,
+  fetcher: typeof fetch = fetch,
+  wait: (delayMs: number) => Promise<void> = (delayMs) =>
+    new Promise((resolve) => setTimeout(resolve, delayMs)),
+): Promise<{ response: Response; retries: number }> {
+  let retries = 0;
+
+  for (let attempt = 1; attempt <= maximumFeedAttempts; attempt += 1) {
+    let response: Response;
+    try {
+      response = await fetcher(url, {
+        ...init,
+        signal: AbortSignal.timeout(requestTimeoutMs),
+      });
+    } catch (error) {
+      if (attempt === maximumFeedAttempts) {
+        throw new Error(
+          `Network request failed after ${retries} ${retries === 1 ? "retry" : "retries"}: ${errorMessage(error)}`,
+          { cause: error },
+        );
+      }
+      retries += 1;
+      await wait(1000 * 2 ** (attempt - 1));
+      continue;
+    }
+
+    if (response.ok || !isRetryableStatus(response.status)) {
+      return { response, retries };
+    }
+
+    if (attempt === maximumFeedAttempts) {
+      return { response, retries };
+    }
+
+    retries += 1;
+    await response.body?.cancel();
+    await wait(retryDelay(response, attempt));
+  }
+
+  throw new Error("Feed retry loop ended without a response.");
+}
+
 async function fetchFeed(
   feed: FeedDefinition,
   now: Date,
 ): Promise<FeedResult> {
-  let response: Response;
-  try {
-    response = await fetch(requestUrl(feed, now), {
+  const { response, retries } = await fetchWithRetry(
+    requestUrl(feed, now),
+    {
       headers: {
         accept:
           feed.format === "xml"
@@ -418,20 +488,17 @@ async function fetchFeed(
             : "application/json",
         "user-agent": "AreWeCookedYet/1.0 (daily editorial ingestion)",
       },
-      signal: AbortSignal.timeout(requestTimeoutMs),
-    });
-  } catch (error) {
-    throw new Error(`Network request failed: ${errorMessage(error)}`, {
-      cause: error,
-    });
-  }
+    },
+  );
 
   if (!response.ok) {
-    throw new Error(`HTTP ${response.status} ${response.statusText}`.trim());
+    throw new Error(
+      `HTTP ${response.status} ${response.statusText}; failed after ${retries} ${retries === 1 ? "retry" : "retries"}`.trim(),
+    );
   }
 
   if (feed.format === "xml") {
-    return { entries: parseXmlFeed(await response.text(), feed, now) };
+    return { entries: parseXmlFeed(await response.text(), feed, now), retries };
   }
 
   let json: unknown;
@@ -441,12 +508,12 @@ async function fetchFeed(
     throw new Error("The feed response was not valid JSON.");
   }
   if (feed.format === "hacker-news") {
-    return { entries: parseHackerNews(json, feed, now) };
+    return { entries: parseHackerNews(json, feed, now), retries };
   }
   if (feed.format === "reddit") {
-    return { entries: parseReddit(json, feed, now) };
+    return { entries: parseReddit(json, feed, now), retries };
   }
-  return { entries: parseHuggingFace(json, feed, now) };
+  return { entries: parseHuggingFace(json, feed, now), retries };
 }
 
 function requireConfiguration() {
@@ -619,10 +686,18 @@ export async function runIngestion(now = new Date()): Promise<IngestionSummary> 
         summary.feedsParsed += 1;
         summary.entriesFound += result.value.entries.length;
         candidates.push(...result.value.entries);
+        if (result.value.retries > 0) {
+          summary.anomalies.push({
+            feed: feed.id,
+            message: `Feed recovered after ${result.value.retries} ${result.value.retries === 1 ? "retry" : "retries"}.`,
+            severity: "warning",
+          });
+        }
       } else {
         summary.anomalies.push({
           feed: feed.id,
           message: errorMessage(result.reason),
+          severity: "error",
         });
       }
     });
@@ -631,7 +706,7 @@ export async function runIngestion(now = new Date()): Promise<IngestionSummary> 
     summary.status =
       summary.feedsParsed === 0
         ? "failed"
-        : summary.anomalies.length > 0
+        : summary.anomalies.some((anomaly) => anomaly.severity === "error")
           ? "partial"
           : "succeeded";
 
@@ -641,7 +716,7 @@ export async function runIngestion(now = new Date()): Promise<IngestionSummary> 
         : null;
     await updateRun(runId, summary, new Date().toISOString(), finalError);
     console.info(
-      `Ingestion ${summary.status}: ${summary.feedsParsed}/${feeds.length} feeds parsed, ${summary.entriesFound} entries found, ${summary.entriesInserted} inserted, ${summary.anomalies.length} anomalies.`,
+      `Ingestion ${summary.status}: ${summary.feedsParsed}/${feeds.length} feeds parsed, ${summary.entriesFound} entries found, ${summary.entriesInserted} inserted, ${summary.anomalies.length} feed ${summary.anomalies.length === 1 ? "diagnostic" : "diagnostics"}.`,
     );
     return summary;
   } catch (error) {

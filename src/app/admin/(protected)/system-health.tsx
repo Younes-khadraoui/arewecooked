@@ -80,6 +80,15 @@ function getAnomalies(value: Json): Json[] {
   return Array.isArray(value) ? value : [];
 }
 
+function isErrorDiagnostic(value: Json): boolean {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    !Array.isArray(value) &&
+    value.severity === "error"
+  );
+}
+
 export function SystemHealth({
   error,
   runs,
@@ -163,7 +172,7 @@ export function SystemHealth({
                     ["Feeds parsed", run.feeds_parsed],
                     ["Entries found", run.entries_found],
                     ["Entries added", run.entries_inserted],
-                    ["Anomalies", run.anomaly_count],
+                    ["Feed diagnostics", run.anomaly_count],
                   ].map(([label, value]) => (
                     <div
                       className="rounded-lg border border-border bg-background/50 px-3 py-2.5"
@@ -194,7 +203,11 @@ export function SystemHealth({
                     <ul className="m-0 grid list-none gap-2 p-0">
                       {anomalies.map((anomaly, index) => (
                         <li
-                          className="rounded-lg border border-chart-4/30 bg-chart-4/5 px-3 py-2 text-sm text-muted-foreground"
+                          className={`rounded-lg border px-3 py-2 text-sm text-muted-foreground ${
+                            isErrorDiagnostic(anomaly)
+                              ? "border-destructive/30 bg-destructive/5"
+                              : "border-chart-4/30 bg-chart-4/5"
+                          }`}
                           key={`${run.id}-${index}`}
                         >
                           {formatAnomaly(anomaly)}
