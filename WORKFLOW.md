@@ -144,7 +144,7 @@ Project goals:
 - [x] Support confirmed soft-delete and hard-delete operations for published records
 - [x] Add keyboard shortcuts: `J/K` for navigation, `A` for approve, `X` for reject
 - [x] Add pending/rejected status filters, audit view, and queue empty/error states
-- [ ] Expose admin reliability logs and ingestion run status
+- [x] Expose admin reliability logs and ingestion run status
 
 ### Moderation behavior
 - Default ingestion items are inserted as `pending`
@@ -157,12 +157,12 @@ Project goals:
 ## Milestone 6: Telemetry, Health, and Diagnostics
 
 ### Checklist
-- [ ] Define telemetry schema and log fields for `cron_logs`
+- [x] Define telemetry schema and log fields for `cron_logs`
 - [ ] Track parsed feed counts, anomalies, network issues, and final status
-- [ ] Add a visible system health surface in the admin panel
-- [ ] Provide badges for failed feed fetches, retries, and ingestion errors
+- [x] Add a visible system health surface in the admin panel
+- [x] Provide badges for failed feed fetches, retries, and ingestion errors
 - [ ] Add manual invocation webhook or admin action to trigger the daily job for diagnostics
-- [ ] Add a run history screen for recent execution health
+- [x] Add a run history screen for recent execution health
 
 ### Logged telemetry fields
 - Timestamp

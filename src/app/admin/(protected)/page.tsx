@@ -5,6 +5,7 @@ import { ReviewQueue } from "@/app/admin/(protected)/review-queue";
 import { EntryDetailsEditor } from "@/app/admin/(protected)/entry-details-editor";
 import { PublishedEntryActions } from "@/app/admin/(protected)/published-entry-actions";
 import { RejectedEntries } from "@/app/admin/(protected)/rejected-entries";
+import { SystemHealth } from "@/app/admin/(protected)/system-health";
 
 export const metadata = {
   title: "Admin — Are We Cooked Yet?",
@@ -20,7 +21,12 @@ export default async function AdminPage({
   const supabase = await createClient();
   const params = await searchParams;
   const activeFilter = params.status === "rejected" ? "rejected" : "pending";
-  const [pendingResult, rejectedResult, publishedResult] = await Promise.all([
+  const [
+    pendingResult,
+    rejectedResult,
+    publishedResult,
+    cronLogsResult,
+  ] = await Promise.all([
     supabase
       .from("entries")
       .select(
@@ -46,6 +52,13 @@ export default async function AdminPage({
       .is("deleted_at", null)
       .order("published_at", { ascending: false, nullsFirst: false })
       .limit(21),
+    supabase
+      .from("cron_logs")
+      .select(
+        "id,started_at,completed_at,feeds_parsed,entries_found,entries_inserted,anomaly_count,anomalies,status,error_message",
+      )
+      .order("started_at", { ascending: false })
+      .limit(20),
   ]);
   const entries = (pendingResult.data ?? []).slice(0, 100);
   const rejectedEntries = (rejectedResult.data ?? []).slice(0, 20);
@@ -136,6 +149,11 @@ export default async function AdminPage({
               hasMore={(rejectedResult.data?.length ?? 0) > 20}
             />
           )}
+
+          <SystemHealth
+            error={cronLogsResult.error?.message ?? null}
+            runs={cronLogsResult.data ?? []}
+          />
 
           <section aria-labelledby="published-articles-title" className="mt-14">
             <div className="flex flex-wrap items-end justify-between gap-4 border-b border-border pb-4">
