@@ -30,6 +30,24 @@ test("parses recent RSS entries and strips markup from source excerpts", () => {
   assert.equal(entries[0].source_excerpt, "Original source excerpt");
 });
 
+test("keeps excerpt text readable when HTML fragments are incomplete or contain comparisons", () => {
+  const entries = parseXmlFeed(
+    `<rss version="2.0"><channel><item>
+      <title>Research note</title>
+      <link>https://example.com/research</link>
+      <pubDate>Tue, 06 Oct 2026 11:00:00 GMT</pubDate>
+      <description><![CDATA[<p>Models with score < 0.5 perform &amp; generalize.</p><p>Next paragraph<br>with a line break. <img src="/partial]]></description>
+    </item></channel></rss>`,
+    feed,
+    now,
+  );
+
+  assert.equal(
+    entries[0].source_excerpt,
+    "Models with score < 0.5 perform & generalize.\nNext paragraph\nwith a line break.",
+  );
+});
+
 test("parses Atom alternate links and ignores entries outside the 24-hour window", () => {
   const entries = parseXmlFeed(
     `<feed xmlns="http://www.w3.org/2005/Atom">

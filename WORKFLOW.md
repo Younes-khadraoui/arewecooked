@@ -84,12 +84,12 @@ Project goals:
 ## Milestone 3: Public Feed Experience
 
 ### Checklist
-- [ ] Build the public homepage list view
-- [ ] Sort entries chronologically by publication time or freshness signal
-- [ ] Render a minimal but premium article card style
-- [ ] Display original titles, source metadata, optional source-provided excerpts, and dates clearly
+- [x] Build the public homepage list view
+- [x] Sort entries chronologically by publication time or freshness signal
+- [x] Render a minimal but premium article card style
+- [x] Display original titles, source metadata, optional source-provided excerpts, and dates clearly
 - [ ] Support article detail pages for expanded reading
-- [ ] Use SSR/ISR-friendly rendering to avoid client-side loading jank
+- [x] Use server-rendered Supabase content to avoid client-side loading jank
 - [ ] Ensure semantic HTML and accessibility compliance across public pages
 
 ### Public UX principles

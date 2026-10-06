@@ -135,6 +135,7 @@ export async function moderateEntry(
   }
 
   revalidatePath("/admin");
+  revalidatePath("/");
   return {
     error: null,
     success: decision === "published" ? "Entry approved." : "Entry rejected.",

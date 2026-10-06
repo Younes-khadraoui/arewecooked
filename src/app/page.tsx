@@ -1,5 +1,7 @@
 import { ThemeToggle } from "@/components/theme-toggle";
 import Link from "next/link";
+import { createClient } from "@/lib/supabase/server";
+import type { EntryRow } from "@/lib/database.types";
 
 const sources = [
   "OpenAI",
@@ -13,7 +15,105 @@ const sources = [
   "Reddit",
 ];
 
-export default function Home() {
+type PublishedEntry = Pick<
+  EntryRow,
+  "id" | "title" | "source_name" | "original_url" | "source_excerpt" | "published_at"
+>;
+
+function formatPublishedDate(value: string | null) {
+  if (!value) {
+    return "Date unavailable";
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "Date unavailable";
+  }
+
+  return new Intl.DateTimeFormat("en", {
+    dateStyle: "medium",
+    timeZone: "UTC",
+  }).format(date);
+}
+
+function ArticleList({ entries }: { entries: PublishedEntry[] }) {
+  if (entries.length === 0) {
+    return (
+      <div className="mt-[23px] flex min-h-[220px] flex-col items-center justify-center rounded-[14px] border border-dashed border-border bg-panel/50 px-5 py-8 text-center md:min-h-[246px]">
+        <span
+          aria-hidden="true"
+          className="mb-[19px] flex h-7 items-end gap-1 text-accent"
+        >
+          <span className="h-3 w-1 rounded-full bg-current opacity-70" />
+          <span className="h-[21px] w-1 rounded-full bg-current opacity-70" />
+          <span className="h-4 w-1 rounded-full bg-current opacity-70" />
+        </span>
+        <p className="mb-[7px] text-[15px] font-semibold tracking-[-0.02em]">
+          The first edition is on its way.
+        </p>
+        <p className="mb-0 max-w-[390px] text-[13px] leading-[1.65] text-subtle">
+          We’re setting up the reading desk. New stories will appear here after
+          they’re reviewed by an editor.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <ol className="m-0 mt-[23px] grid list-none gap-3 p-0">
+      {entries.map((entry) => (
+        <li
+          className="min-w-0 rounded-[14px] border border-border bg-panel/90 p-5 transition-colors hover:border-accent/40 sm:p-6"
+          key={entry.id}
+        >
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-subtle">
+            <span className="rounded-full border border-border px-2.5 py-1 text-muted-foreground">
+              {entry.source_name}
+            </span>
+            <time dateTime={entry.published_at ?? undefined}>
+              {formatPublishedDate(entry.published_at)}
+            </time>
+          </div>
+          <h3 className="mb-0 mt-4 break-words text-lg font-semibold leading-snug tracking-[-0.03em] sm:text-xl">
+            {entry.title}
+          </h3>
+          {entry.source_excerpt ? (
+            <p className="mb-0 mt-3 line-clamp-4 break-words whitespace-pre-line text-sm leading-6 text-muted-foreground [overflow-wrap:anywhere]">
+              {entry.source_excerpt}
+            </p>
+          ) : null}
+          <a
+            className="mt-4 inline-flex max-w-full items-center gap-1.5 break-all text-sm font-medium text-accent-soft underline decoration-accent/40 underline-offset-4 hover:decoration-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            href={entry.original_url}
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            Read at {entry.source_name}
+            <span aria-hidden="true">↗</span>
+          </a>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+export default async function Home() {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("entries")
+    .select("id,title,source_name,original_url,source_excerpt,published_at")
+    .eq("status", "published")
+    .is("deleted_at", null)
+    .order("published_at", { ascending: false, nullsFirst: false })
+    .order("created_at", { ascending: false })
+    .limit(30);
+
+  if (error) {
+    throw new Error("Unable to load published articles for the homepage.", {
+      cause: error,
+    });
+  }
+
   return (
     <main className="min-h-screen">
       <header className="mx-auto flex min-h-[82px] w-full max-w-[1120px] items-center justify-between border-b border-border px-5 sm:px-6">
@@ -113,23 +213,7 @@ export default function Home() {
           <span className="pb-[3px] text-xs text-subtle">Updated daily</span>
         </div>
 
-        <div className="mt-[23px] flex min-h-[220px] flex-col items-center justify-center rounded-[14px] border border-dashed border-border bg-panel/50 px-5 py-8 text-center md:min-h-[246px]">
-          <span
-            aria-hidden="true"
-            className="mb-[19px] flex h-7 items-end gap-1 text-accent"
-          >
-            <span className="h-3 w-1 rounded-full bg-current opacity-70" />
-            <span className="h-[21px] w-1 rounded-full bg-current opacity-70" />
-            <span className="h-4 w-1 rounded-full bg-current opacity-70" />
-          </span>
-          <p className="mb-[7px] text-[15px] font-semibold tracking-[-0.02em]">
-            The first edition is on its way.
-          </p>
-          <p className="mb-0 max-w-[390px] text-[13px] leading-[1.65] text-subtle">
-            We’re setting up the reading desk. New stories will appear here
-            after they’re reviewed by an editor.
-          </p>
-        </div>
+        <ArticleList entries={data ?? []} />
       </section>
 
       <section
