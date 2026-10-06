@@ -1,0 +1,66 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: dark;
+  --background: #0f0e0d;
+  --panel: #171412;
+  --border: #2c2622;
+  --foreground: #f3eee8;
+  --muted: #c8bdb4;
+  --subtle: #93867d;
+  --accent: #c98a52;
+  --accent-soft: #d8b48a;
+  --font-body: Geist, Inter, "Segoe UI", sans-serif;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --background: #f7f3ee;
+  --panel: #fffdfb;
+  --border: #ddd0c5;
+  --foreground: #211b17;
+  --muted: #584e46;
+  --subtle: #7a6e64;
+  --accent: #8b5e3c;
+  --accent-soft: #b77e4a;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-panel: var(--panel);
+  --color-border: var(--border);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-subtle: var(--subtle);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --font-sans: var(--font-body);
+}
+
+html {
+  min-height: 100%;
+  scroll-behavior: smooth;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  background:
+    radial-gradient(ellipse at 76% 0%, color-mix(in srgb, var(--accent) 8%, transparent), transparent 34rem),
+    var(--background);
+  color: var(--foreground);
+  font-family: var(--font-body);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+  }
+}
