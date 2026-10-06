@@ -35,6 +35,6 @@ There is no public sign-up flow. Disable new user sign-ups in Supabase Auth sett
 npm run grant-admin -- editor@example.com
 ```
 
-The provisioning script updates the existing account's `app_metadata.role` using the service-role key locally. Do not put that key in a `NEXT_PUBLIC_` variable or Netlify unless a later server-side feature specifically requires it. Sign in at `/admin/login` with the provisioned account.
+The provisioning script updates the existing account's `app_metadata.role` using the Supabase Auth Admin API directly. `SUPABASE_SERVICE_ROLE_KEY` can contain the newer `sb_secret_…` key or the legacy `service_role` key. Do not put either in a `NEXT_PUBLIC_` variable or Netlify. Sign in at `/admin/login` with the provisioned account.
 
 The Supabase JavaScript client version used here requires Node.js 22 or newer; Netlify is configured to build with Node 22.
