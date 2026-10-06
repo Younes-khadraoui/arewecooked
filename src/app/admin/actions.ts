@@ -14,6 +14,11 @@ export interface ModerationActionState {
   success: string | null;
 }
 
+export interface EditEntryActionState {
+  error: string | null;
+  success: string | null;
+}
+
 export async function signIn(
   _previousState: AuthFormState,
   formData: FormData,
@@ -125,6 +130,80 @@ export async function moderateEntry(
     error: null,
     success: decision === "published" ? "Entry approved." : "Entry rejected.",
   };
+}
+
+export async function updateEntryDetails(
+  _previousState: EditEntryActionState,
+  formData: FormData,
+): Promise<EditEntryActionState> {
+  const idValue = formData.get("id");
+  const titleValue = formData.get("title");
+  const urlValue = formData.get("original_url");
+
+  if (
+    typeof idValue !== "string" ||
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      idValue,
+    ) ||
+    typeof titleValue !== "string" ||
+    typeof urlValue !== "string"
+  ) {
+    return { error: "Invalid article details. Refresh the queue and try again.", success: null };
+  }
+
+  const title = titleValue.trim();
+  const originalUrl = urlValue.trim();
+  if (title.length === 0 || title.length > 500) {
+    return { error: "Title must be between 1 and 500 characters.", success: null };
+  }
+  if (originalUrl.length === 0 || originalUrl.length > 2048) {
+    return { error: "Source URL must be between 1 and 2048 characters.", success: null };
+  }
+
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(originalUrl);
+  } catch {
+    return { error: "Enter a valid source URL.", success: null };
+  }
+  if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
+    return { error: "Source URL must use HTTP or HTTPS.", success: null };
+  }
+
+  await requireAdmin();
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("entries")
+    .update({ title, original_url: parsedUrl.toString() })
+    .eq("id", idValue)
+    .in("status", ["pending", "published"])
+    .is("deleted_at", null)
+    .select("id")
+    .maybeSingle();
+
+  if (error) {
+    if (error.code === "23505") {
+      return {
+        error: "Another entry already uses that source URL.",
+        success: null,
+      };
+    }
+    throw new Error("Unable to save the article edits in Supabase.", {
+      cause: error,
+    });
+  }
+
+  if (!data) {
+    return {
+      error: "This entry was already reviewed or removed. Refresh the queue.",
+      success: null,
+    };
+  }
+
+  revalidatePath("/admin");
+  revalidatePath("/");
+  return { error: null, success: "Article details saved." };
 }
 
 export async function signOut() {

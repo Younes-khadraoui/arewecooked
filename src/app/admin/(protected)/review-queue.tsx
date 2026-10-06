@@ -1,7 +1,11 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState } from "react";
-import { moderateEntry, type ModerationActionState } from "@/app/admin/actions";
+import {
+  moderateEntry,
+  type ModerationActionState,
+} from "@/app/admin/actions";
+import { EntryDetailsEditor } from "@/app/admin/(protected)/entry-details-editor";
 import type { EntryRow } from "@/lib/database.types";
 
 const initialState: ModerationActionState = { error: null, success: null };
@@ -75,6 +79,12 @@ function ReviewCard({
       >
         Open original article
       </a>
+
+      <EntryDetailsEditor
+        id={entry.id}
+        originalUrl={entry.original_url}
+        title={entry.title}
+      />
 
       <form
         action={formAction}

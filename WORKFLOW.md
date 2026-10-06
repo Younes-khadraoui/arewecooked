@@ -140,7 +140,7 @@ Project goals:
 - [x] Provide a server-side-only utility to grant admin metadata to an existing account
 - [x] Build a queue of pending items with card-based review layout
 - [x] Add approve / reject actions with binary state transitions
-- [ ] Allow inline editing of title and source URL
+- [x] Allow inline editing of title and source URL for pending and published entries
 - [ ] Support soft-delete and hard-delete operations for published records
 - [x] Add keyboard shortcuts: `J/K` for navigation, `A` for approve, `X` for reject
 - [ ] Add empty-state, filter-state, and error-state handling
