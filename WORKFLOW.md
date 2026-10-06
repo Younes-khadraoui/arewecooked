@@ -36,7 +36,8 @@ Project goals:
 - [x] Initialize Next.js App Router project
 - [x] Configure TypeScript strict settings and project structure
 - [x] Install and configure Tailwind CSS
-- [ ] Add a professional component layer (preferably shadcn/ui or equivalent polished headless primitives)
+- [x] Add a professional component layer using shadcn/ui with Radix primitives
+- [x] Install Supabase browser/server client libraries and generate typed client helpers
 - [ ] Define local design tokens for spacing, color, radius, border, typography, and motion
 - [x] Implement both light and dark theme variants
 - [x] Build a premium shell with navigation, content framing, and editorial layout patterns
@@ -53,30 +54,30 @@ Project goals:
 ## Milestone 2: Database and Content Model
 
 ### Checklist
-- [ ] Define the core `entries` table schema
-- [ ] Define moderation and status fields (`pending`, `published`, `rejected`)
-- [ ] Define source metadata fields (`source_name`, `source_url`, `original_url`, `published_at`, `feed_type`)
-- [ ] Add deduplication indexes on `original_url`
-- [ ] Add moderation metadata (`approved_by`, `approved_at`, `notes`, `deleted_at`)
-- [ ] Add `cron_logs` table for ingestion diagnostics
-- [ ] Add `feed_runs` or equivalent run tracking structure
-- [ ] Add RLS policies for read-only public access and admin-only write paths
-- [ ] Validate schema constraints and insertion rules
+- [x] Define the core `entries` table schema in a Supabase migration
+- [x] Define moderation and status fields (`pending`, `published`, `rejected`)
+- [x] Define source metadata fields (`source_name`, `original_url`, `source_excerpt`, `published_at`, `feed_kind`)
+- [x] Add deduplication constraint and query indexes for `original_url` and review/publication queues
+- [x] Add moderation metadata (`reviewed_by`, `reviewed_at`, `review_notes`, `deleted_at`)
+- [x] Add `cron_logs` table for ingestion diagnostics
+- [x] Use `cron_logs` as the ingestion run history; no separate `feed_runs` table is needed
+- [x] Add RLS policies for read-only public access and admin-only write paths
+- [x] Add strict database constraints for statuses, source kinds, timestamps, and log counts
+- [ ] Apply migration to Supabase and verify access using public, admin, and service-role credentials
 
 ### Proposed content model
 - `id` (UUID or bigint primary key)
 - `title`
-- `summary`
 - `source_name`
-- `source_url`
-- `original_url`
+- `original_url` (canonical source article URL; unique)
+- `source_excerpt` (optional source-provided description, never LLM-generated)
 - `published_at`
-- `status`
+- `feed_kind`
+- `status` (`pending`, `published`, or `rejected`)
 - `created_at`
 - `updated_at`
 - `deleted_at`
-- `review_notes`
-- `feed_kind` (RSS, API, Reddit, Hacker News, arXiv, etc.)
+- `reviewed_by`, `reviewed_at`, `review_notes`
 
 ---
 
@@ -86,7 +87,7 @@ Project goals:
 - [ ] Build the public homepage list view
 - [ ] Sort entries chronologically by publication time or freshness signal
 - [ ] Render a minimal but premium article card style
-- [ ] Display source metadata, titles, summaries, and dates clearly
+- [ ] Display original titles, source metadata, optional source-provided excerpts, and dates clearly
 - [ ] Support article detail pages for expanded reading
 - [ ] Use SSR/ISR-friendly rendering to avoid client-side loading jank
 - [ ] Ensure semantic HTML and accessibility compliance across public pages
@@ -138,7 +139,7 @@ Project goals:
 - [ ] Add role-protected admin session flow using Supabase Auth
 - [ ] Build a queue of pending items with card-based review layout
 - [ ] Add approve / reject actions with binary state transitions
-- [ ] Allow inline editing of title, summary, source URL, and other key fields
+- [ ] Allow inline editing of title and source URL
 - [ ] Support soft-delete and hard-delete operations for published records
 - [ ] Add keyboard shortcuts: `J/K` for navigation, `A` for approve, `X` for reject
 - [ ] Add empty-state, filter-state, and error-state handling

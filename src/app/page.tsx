@@ -38,7 +38,7 @@ export default function Home() {
           className="flex items-center gap-3.5 sm:gap-[23px]"
         >
           <a
-            className="text-[13px] text-muted transition-colors hover:text-foreground"
+            className="text-[13px] text-muted-foreground transition-colors hover:text-foreground"
             href="#sources"
           >
             Sources
@@ -68,7 +68,7 @@ export default function Home() {
             <br />
             <span className="text-accent-soft">without the noise.</span>
           </h1>
-          <p className="mb-0 max-w-[510px] text-[14px] leading-[1.75] text-muted md:text-base">
+          <p className="mb-0 max-w-[510px] text-[14px] leading-[1.75] text-muted-foreground md:text-base">
             A thoughtful daily reading list for people building software.
             Original headlines, direct links, and editor-reviewed selections.
           </p>
@@ -88,7 +88,7 @@ export default function Home() {
             UTC · once a day
           </span>
           <span className="my-[18px] hidden h-px bg-border md:block" />
-          <span className="hidden text-[11px] text-muted md:block">
+          <span className="hidden text-[11px] text-muted-foreground md:block">
             Curated, not generated.
           </span>
         </aside>
@@ -158,7 +158,7 @@ export default function Home() {
         >
           {sources.map((source) => (
             <li
-              className="rounded-full border border-border bg-panel px-3 py-[9px] text-xs text-muted"
+              className="rounded-full border border-border bg-panel px-3 py-[9px] text-xs text-muted-foreground"
               key={source}
             >
               {source}
@@ -168,7 +168,7 @@ export default function Home() {
       </section>
 
       <footer className="mx-auto flex min-h-[72px] w-full max-w-[1120px] items-center justify-between border-t border-border px-5 text-[11px] text-subtle sm:px-6">
-        <Link className="font-semibold text-muted" href="/">
+        <Link className="font-semibold text-muted-foreground" href="/">
           Are We Cooked Yet?
         </Link>
         <span>Good signal. Better coffee.</span>

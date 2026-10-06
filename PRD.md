@@ -55,9 +55,7 @@ The service must aggregate RSS, Atom, and API feeds from:
 ### 2. Processing Specifications
 1.  **Extraction:** Retrieve URIs and metadata for the preceding 24-hour window.
 2.  **Deduplication:** Verify against the database utilizing a unique index on `original_url`. Cluster redundant coverage of single events.
-3.  **LLM Batch Processing:** Transmit the sanitized payload to the LLM with strict prompt constraints to yield:
-    *   A standardized, technical headline.
-    *   A concise, two-sentence technical summary and two key takeaways.
+3.  **LLM Batch Processing:** Deferred from the MVP. Do not call an LLM or generate summaries; preserve original article titles and source metadata.
 4.  **Database Write:** Insert all validated records with the default status `pending`.
 
 ### 3. Historic Backfill Initialization
@@ -71,7 +69,7 @@ The `/admin` route requires strict access controls and must be optimized for rap
 
 *   **Review Queue:** Display records with `status: 'pending'` in a card-based interface.
 *   **State Management:** Permit binary actions: **[Approve]** (`status: 'published'`) or **[Reject]** (`status: 'rejected'`).
-*   **Mutation Capabilities:** Enable inline editing of the title, source URL, and summary prior to or post-publication.
+*   **Mutation Capabilities:** Enable inline editing of the title and source URL prior to or post-publication.
 *   **Record Deletion:** Support both logical (soft) and physical (hard) deletion of published entries.
 *   **Keyboard Navigation:** Implement global event listeners for rapid triage (e.g., `J/K` for traversal, `A` for approval, `X` for rejection).
 
@@ -80,8 +78,8 @@ The `/admin` route requires strict access controls and must be optimized for rap
 ## Phase 5: Telemetry & System Health Monitoring
 
 Silent failures are unacceptable. The administrative interface must feature a robust **System Health** module:
-1.  **Execution Logs:** The daily automation must write telemetry to a `cron_logs` table (Timestamp, Feeds Parsed, Anomalies, LLM Token Consumption, Final Status).
-2.  **Error Handling:** Surface network or API failures (e.g., HTTP 503s from target feeds, LLM timeouts) via human-readable diagnostic badges in the UI.
+1.  **Execution Logs:** The daily automation must write telemetry to a `cron_logs` table (Timestamp, Feeds Parsed, Anomalies, Final Status). LLM token consumption is out of scope while LLM processing is deferred.
+2.  **Error Handling:** Surface network or API failures (e.g., HTTP 503s from target feeds) via human-readable diagnostic badges in the UI. Add LLM timeout diagnostics only if LLM processing is approved in a later phase.
 3.  **Manual Invocation:** Provide a secure webhook trigger within the admin panel to force execute the batch process for diagnostic purposes.
 
 ---

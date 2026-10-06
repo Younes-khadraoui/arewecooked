@@ -169,21 +169,21 @@ Use an 8px rhythm with a small set of larger spacing values.
 ## 7) Component usage in the product
 
 ### Public homepage
-- Feature block or hero summary
+- Feature block introducing the daily editorial feed
 - List of publication cards
 - Source and date metadata on each item
 - Link to article detail page
 
 ### Article detail page
 - Big headline and metadata row
-- Summary and source callout
+- Original source link and publication metadata
 - Optional “why this matters”/opinion surface in a later phase
 - Clean, readable article blocks with balanced whitespace
 
 ### Admin moderation queue
 - Card-based review list
 - Clear approval/rejection actions
-- Inline editing for summary and title
+- Inline editing for title and source URL
 - Keyboard-first interaction design
 - Health status badges and logs displayed in a compact right rail or top panel
 
