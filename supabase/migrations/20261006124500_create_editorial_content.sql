@@ -95,3 +95,4 @@ create policy "Admins can manage cron logs"
 grant select on public.entries to anon, authenticated;
 grant insert, update, delete on public.entries to authenticated;
 grant select, insert, update, delete on public.cron_logs to authenticated;
+grant all privileges on table public.entries, public.cron_logs to service_role;

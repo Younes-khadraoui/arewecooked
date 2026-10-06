@@ -103,14 +103,14 @@ Project goals:
 
 ### Checklist
 - [ ] Define target feeds and ingestion sources
-- [ ] Create feed fetcher abstraction for RSS, Atom, and JSON endpoints
-- [ ] Normalize metadata into a single internal content shape
-- [ ] Deduplicate against the database using `original_url`
+- [x] Create feed fetcher abstraction for RSS, Atom, and JSON endpoints
+- [x] Normalize metadata into a single internal content shape
+- [x] Deduplicate against the database using `original_url`
 - [ ] Filter out non-relevant low-quality entries
-- [ ] Enqueue or directly insert valid rows with default `status: 'pending'`
-- [ ] Log batch execution details to `cron_logs`
-- [ ] Handle HTTP failures and rate-limit anomalies with human-readable diagnostics
-- [ ] Gate the automation behind a strict `cron: '0 4 * * *'` schedule
+- [x] Enqueue or directly insert valid rows with default `status: 'pending'`
+- [x] Log batch execution details to `cron_logs`
+- [x] Handle HTTP failures and rate-limit anomalies with human-readable diagnostics
+- [x] Gate the automation behind a strict `cron: '0 4 * * *'` schedule
 - [ ] Add a manual diagnostic trigger path for on-demand execution
 
 ### v1 ingestion sources
@@ -158,7 +158,7 @@ Project goals:
 
 ### Checklist
 - [x] Define telemetry schema and log fields for `cron_logs`
-- [ ] Track parsed feed counts, anomalies, network issues, and final status
+- [x] Track parsed feed counts, anomalies, network issues, and final status
 - [x] Add a visible system health surface in the admin panel
 - [x] Provide badges for failed feed fetches, retries, and ingestion errors
 - [ ] Add manual invocation webhook or admin action to trigger the daily job for diagnostics
