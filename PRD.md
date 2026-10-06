@@ -65,7 +65,7 @@ Develop a dedicated utility (`npm run seed`) to ingest historical data covering 
 
 ## Phase 4: Content Management & Admin Moderation
 
-The `/admin` route requires strict access controls and must be optimized for rapid, daily triage.
+The `/admin` route requires strict access controls and must be optimized for rapid, daily triage. Admin sign-in uses Supabase Auth email/password accounts only; public registration is not part of the MVP. Admin authorization must check the trusted `app_metadata.role` claim.
 
 *   **Review Queue:** Display records with `status: 'pending'` in a card-based interface.
 *   **State Management:** Permit binary actions: **[Approve]** (`status: 'published'`) or **[Reject]** (`status: 'rejected'`).

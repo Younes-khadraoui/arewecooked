@@ -97,8 +97,9 @@ The project requires a low-cost, premium editorial intelligence platform for AI/
 ## 4) Authentication: Admin-only Auth (Supabase Auth)
 
 ### Selected technology
-- Supabase Auth
-- Admin-only protected routes via authenticated session gating
+- Supabase Auth email/password
+- Admin-only protected routes gated by the trusted `app_metadata.role` claim
+- Admin account creation is provisioned manually; public sign-up is disabled/out of scope
 - No public user sign-in requirements for v1
 
 ### Alternatives evaluated

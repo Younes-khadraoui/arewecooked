@@ -135,8 +135,9 @@ Project goals:
 ## Milestone 5: Admin Moderation Portal
 
 ### Checklist
-- [ ] Implement secure `/admin` route
-- [ ] Add role-protected admin session flow using Supabase Auth
+- [x] Implement secure `/admin` route shell and email/password sign-in page
+- [x] Add role-protected admin session flow using Supabase Auth and trusted `app_metadata.role`
+- [x] Provide a server-side-only utility to grant admin metadata to an existing account
 - [ ] Build a queue of pending items with card-based review layout
 - [ ] Add approve / reject actions with binary state transitions
 - [ ] Allow inline editing of title and source URL
