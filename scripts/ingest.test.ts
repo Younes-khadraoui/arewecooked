@@ -25,9 +25,39 @@ test("parses recent RSS entries and strips markup from source excerpts", () => {
   );
 
   assert.equal(entries.length, 1);
-  assert.equal(entries[0].title, "New model <b>release</b>");
+  assert.equal(entries[0].title, "New model release");
   assert.equal(entries[0].original_url, "https://example.com/story");
   assert.equal(entries[0].source_excerpt, "Original source excerpt");
+});
+
+test("sanitizes untrusted feed titles and drops unsafe or empty entries", () => {
+  const entries = parseXmlFeed(
+    `<rss version="2.0"><channel>
+      <item>
+        <title><![CDATA[New <b>model</b>\u0000 &amp; tools<script>alert(1)</script>]]></title>
+        <link>https://example.com/safe</link>
+        <pubDate>Tue, 06 Oct 2026 11:00:00 GMT</pubDate>
+        <description><![CDATA[<script>alert("x")</script><p>Safe excerpt</p>]]></description>
+      </item>
+      <item>
+        <title><![CDATA[<script>alert(1)</script>]]></title>
+        <link>https://example.com/empty-title</link>
+        <pubDate>Tue, 06 Oct 2026 11:00:00 GMT</pubDate>
+      </item>
+      <item>
+        <title>Unsafe destination</title>
+        <link>javascript:alert(1)</link>
+        <pubDate>Tue, 06 Oct 2026 11:00:00 GMT</pubDate>
+      </item>
+    </channel></rss>`,
+    feed,
+    now,
+  );
+
+  assert.equal(entries.length, 1);
+  assert.equal(entries[0].title, "New model & tools");
+  assert.equal(entries[0].source_excerpt, "Safe excerpt");
+  assert.equal(entries[0].original_url, "https://example.com/safe");
 });
 
 test("keeps excerpt text readable when HTML fragments are incomplete or contain comparisons", () => {

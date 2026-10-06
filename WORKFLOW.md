@@ -181,14 +181,14 @@ Project goals:
 ## Milestone 7: Resilience, Security, and Hardening
 
 ### Checklist
-- [ ] Enforce RLS across sensitive admin tables
-- [ ] Restrict admin routes to authenticated sessions only
-- [ ] Handle upstream feed outages with graceful failover and logging
-- [ ] Validate all data inserted into Postgres against safe shape requirements
-- [ ] Add rate-limit awareness and retry policy for external fetches
-- [ ] Add guardrails around malformed or malicious source content
-- [ ] Ensure no server-side secrets are exposed to the public frontend
-- [ ] Run linting, type-checking, and smoke tests before deployment
+- [x] Enforce RLS across sensitive admin tables
+- [x] Restrict admin routes to authenticated sessions only
+- [x] Handle upstream feed outages with graceful failover and logging
+- [x] Validate and normalize ingested titles, URLs, dates, and excerpts before inserting into Postgres
+- [x] Add rate-limit awareness and retry policy for external fetches
+- [x] Add guardrails around malformed or malicious source content
+- [x] Keep server-side service-role secrets out of public frontend code and bundles
+- [x] Run linting, type-checking, ingestion tests, and production build
 
 ---
 

@@ -173,6 +173,7 @@ function cleanExcerpt(value: unknown): string | null {
     .replace(/&gt;/gi, ">")
     .replace(/&quot;/gi, '"')
     .replace(/&#39;|&apos;/gi, "'")
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, " ")
     .replace(/[ \t]+\n/g, "\n")
     .replace(/\n[ \t]+/g, "\n")
     .replace(/\n{3,}/g, "\n\n")
@@ -234,7 +235,7 @@ function normalizeEntry(
   now: Date,
   lookbackDays: number,
 ): IngestionEntry | null {
-  const title = stringValue(titleValue);
+  const title = cleanExcerpt(titleValue)?.replace(/\s+/g, " ").trim() || null;
   const originalUrl = canonicalUrl(urlValue);
   const publishedAt = parseDate(publishedValue);
 
