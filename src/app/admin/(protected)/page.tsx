@@ -13,22 +13,10 @@ import { findArticlePlatform } from "@/lib/article-platforms";
 
 const queuePageSize = 20;
 
-function adminFilterHref(status: "pending" | "rejected", platform: string) {
-  const params = new URLSearchParams();
-  if (status === "rejected") {
-    params.set("status", status);
-  }
-  if (platform) {
-    params.set("platform", platform);
-  }
-  const query = params.toString();
-  return query ? `/admin?${query}` : "/admin";
-}
-
-function adminPageHref(
-  page: number,
+function adminFilterHref(
   status: "pending" | "rejected",
   platform: string,
+  query: string,
 ) {
   const params = new URLSearchParams();
   if (status === "rejected") {
@@ -36,6 +24,29 @@ function adminPageHref(
   }
   if (platform) {
     params.set("platform", platform);
+  }
+  if (query) {
+    params.set("q", query);
+  }
+  const queryString = params.toString();
+  return queryString ? `/admin?${queryString}` : "/admin";
+}
+
+function adminPageHref(
+  page: number,
+  status: "pending" | "rejected",
+  platform: string,
+  query: string,
+) {
+  const params = new URLSearchParams();
+  if (status === "rejected") {
+    params.set("status", status);
+  }
+  if (platform) {
+    params.set("platform", platform);
+  }
+  if (query) {
+    params.set("q", query);
   }
   if (page > 1) {
     params.set("page", String(page));
@@ -54,6 +65,7 @@ export default async function AdminPage({
   searchParams: Promise<{
     page?: string | string[];
     platform?: string | string[];
+    q?: string | string[];
     status?: string | string[];
   }>;
 }) {
@@ -63,6 +75,8 @@ export default async function AdminPage({
   const activeFilter = params.status === "rejected" ? "rejected" : "pending";
   const platformValue = typeof params.platform === "string" ? params.platform : "";
   const platform = findArticlePlatform(platformValue);
+  const searchQuery =
+    typeof params.q === "string" ? params.q.trim().slice(0, 100) : "";
   const requestedPage =
     typeof params.page === "string" && /^\d+$/.test(params.page)
       ? Math.max(1, Number(params.page))
@@ -77,6 +91,12 @@ export default async function AdminPage({
     .is("deleted_at", null);
   if (platform) {
     queueQuery = queueQuery.in("source_name", [...platform.sourceNames]);
+  }
+  if (searchQuery) {
+    queueQuery = queueQuery.ilike(
+      "title",
+      `%${searchQuery.replace(/[\\%_]/g, "\\$&")}%`,
+    );
   }
   queueQuery = queueQuery
     .order(activeFilter === "pending" ? "created_at" : "reviewed_at", {
@@ -129,7 +149,12 @@ export default async function AdminPage({
   const totalPages = Math.max(1, Math.ceil(totalCount / queuePageSize));
   if (!error && requestedPage > totalPages) {
     redirect(
-      adminPageHref(totalPages, activeFilter, platform?.value ?? ""),
+      adminPageHref(
+        totalPages,
+        activeFilter,
+        platform?.value ?? "",
+        searchQuery,
+      ),
     );
   }
 
@@ -158,7 +183,11 @@ export default async function AdminPage({
                 ? "border-accent/50 bg-accent/10 text-foreground"
                 : "border-border bg-panel text-muted-foreground hover:text-foreground"
             }`}
-            href={adminFilterHref("pending", platform?.value ?? "")}
+            href={adminFilterHref(
+              "pending",
+              platform?.value ?? "",
+              searchQuery,
+            )}
           >
             Pending {pendingCountResult.count ?? 0}
           </Link>
@@ -169,7 +198,11 @@ export default async function AdminPage({
                 ? "border-accent/50 bg-accent/10 text-foreground"
                 : "border-border bg-panel text-muted-foreground hover:text-foreground"
             }`}
-            href={adminFilterHref("rejected", platform?.value ?? "")}
+            href={adminFilterHref(
+              "rejected",
+              platform?.value ?? "",
+              searchQuery,
+            )}
           >
             Rejected {rejectedCountResult.count ?? 0}
           </Link>
@@ -202,6 +235,7 @@ export default async function AdminPage({
           <ArticleFilters
             action="/admin"
             platform={platform?.value ?? ""}
+            query={searchQuery}
             status={activeFilter}
           />
           {activeFilter === "pending" ? (
@@ -211,7 +245,12 @@ export default async function AdminPage({
           )}
           <Pagination
             hrefForPage={(page) =>
-              adminPageHref(page, activeFilter, platform?.value ?? "")
+              adminPageHref(
+                page,
+                activeFilter,
+                platform?.value ?? "",
+                searchQuery,
+              )
             }
             page={requestedPage}
             totalPages={totalPages}

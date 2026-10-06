@@ -9,7 +9,12 @@ import { createClient } from "@/lib/supabase/server";
 
 const pageSize = 10;
 
-function buildPageHref(page: number, platform: string, sort: string) {
+function buildPageHref(
+  page: number,
+  platform: string,
+  sort: string,
+  query: string,
+) {
   const params = new URLSearchParams();
   if (platform) {
     params.set("platform", platform);
@@ -17,11 +22,14 @@ function buildPageHref(page: number, platform: string, sort: string) {
   if (sort !== "latest") {
     params.set("sort", sort);
   }
+  if (query) {
+    params.set("q", query);
+  }
   if (page > 1) {
     params.set("page", String(page));
   }
-  const query = params.toString();
-  return query ? `/articles?${query}` : "/articles";
+  const queryString = params.toString();
+  return queryString ? `/articles?${queryString}` : "/articles";
 }
 
 export const metadata = {
@@ -36,12 +44,15 @@ export default async function ArticlesPage({
   searchParams: Promise<{
     page?: string | string[];
     platform?: string | string[];
+    q?: string | string[];
     sort?: string | string[];
   }>;
 }) {
   const params = await searchParams;
   const platformValue = typeof params.platform === "string" ? params.platform : "";
   const platform = findArticlePlatform(platformValue);
+  const searchQuery =
+    typeof params.q === "string" ? params.q.trim().slice(0, 100) : "";
   const sort = params.sort === "oldest" ? "oldest" : "latest";
   const requestedPage =
     typeof params.page === "string" && /^\d+$/.test(params.page)
@@ -59,6 +70,9 @@ export default async function ArticlesPage({
   if (platform) {
     query = query.in("source_name", [...platform.sourceNames]);
   }
+  if (searchQuery) {
+    query = query.ilike("title", `%${searchQuery.replace(/[\\%_]/g, "\\$&")}%`);
+  }
 
   const { data, error, count } = await query
     .order("published_at", { ascending: sort === "oldest", nullsFirst: false })
@@ -72,7 +86,7 @@ export default async function ArticlesPage({
   const totalCount = count ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
   if (requestedPage > totalPages) {
-    redirect(buildPageHref(totalPages, platform?.value ?? "", sort));
+    redirect(buildPageHref(totalPages, platform?.value ?? "", sort, searchQuery));
   }
 
   return (
@@ -128,12 +142,13 @@ export default async function ArticlesPage({
         <ArticleFilters
           action="/articles"
           platform={platform?.value ?? ""}
+          query={searchQuery}
           sort={sort}
         />
         <ArticleList entries={data ?? []} headingLevel="h2" />
         <Pagination
           hrefForPage={(page) =>
-            buildPageHref(page, platform?.value ?? "", sort)
+            buildPageHref(page, platform?.value ?? "", sort, searchQuery)
           }
           page={requestedPage}
           totalPages={totalPages}

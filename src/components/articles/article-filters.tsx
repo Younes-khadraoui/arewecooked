@@ -3,11 +3,13 @@ import { articlePlatforms } from "@/lib/article-platforms";
 export function ArticleFilters({
   action,
   platform,
+  query = "",
   sort = "latest",
   status,
 }: {
   action: string;
   platform: string;
+  query?: string;
   sort?: "latest" | "oldest";
   status?: "pending" | "rejected";
 }) {
@@ -18,6 +20,24 @@ export function ArticleFilters({
       method="get"
     >
       {status ? <input name="status" type="hidden" value={status} /> : null}
+      <div className="grid min-w-[220px] flex-1 gap-1.5">
+        <label
+          className="text-xs font-medium text-muted-foreground"
+          htmlFor={`${action}-query`}
+        >
+          Search title
+        </label>
+        <input
+          autoComplete="off"
+          className="min-h-10 rounded-lg border border-input bg-background px-3 text-sm text-foreground placeholder:text-subtle"
+          defaultValue={query}
+          id={`${action}-query`}
+          maxLength={100}
+          name="q"
+          placeholder="Search article titles"
+          type="search"
+        />
+      </div>
       <div className="grid min-w-[180px] gap-1.5">
         <label className="text-xs font-medium text-muted-foreground" htmlFor={`${action}-platform`}>
           Platform

@@ -20,11 +20,17 @@ const sources = [
 export default async function Home({
   searchParams,
 }: {
-  searchParams: Promise<{ platform?: string | string[]; sort?: string | string[] }>;
+  searchParams: Promise<{
+    platform?: string | string[];
+    q?: string | string[];
+    sort?: string | string[];
+  }>;
 }) {
   const params = await searchParams;
   const platformValue = typeof params.platform === "string" ? params.platform : "";
   const platform = findArticlePlatform(platformValue);
+  const searchQuery =
+    typeof params.q === "string" ? params.q.trim().slice(0, 100) : "";
   const sort = params.sort === "oldest" ? "oldest" : "latest";
   const supabase = await createClient();
   let query = supabase
@@ -38,6 +44,9 @@ export default async function Home({
 
   if (platform) {
     query = query.in("source_name", [...platform.sourceNames]);
+  }
+  if (searchQuery) {
+    query = query.ilike("title", `%${searchQuery.replace(/[\\%_]/g, "\\$&")}%`);
   }
   const { data, error } = await query;
 
@@ -159,6 +168,7 @@ export default async function Home({
           <ArticleFilters
             action="/"
             platform={platform?.value ?? ""}
+            query={searchQuery}
             sort={sort}
           />
           <ArticleList
@@ -172,7 +182,7 @@ export default async function Home({
             </p>
             <Link
               className="inline-flex min-h-10 items-center justify-center rounded-lg border border-accent/40 bg-accent/10 px-4 text-sm font-semibold text-foreground transition-colors hover:bg-accent/20"
-              href={`/articles${platform || sort !== "latest" ? `?${new URLSearchParams({ ...(platform ? { platform: platform.value } : {}), ...(sort !== "latest" ? { sort } : {}) })}` : ""}`}
+              href={`/articles${platform || searchQuery || sort !== "latest" ? `?${new URLSearchParams({ ...(platform ? { platform: platform.value } : {}), ...(searchQuery ? { q: searchQuery } : {}), ...(sort !== "latest" ? { sort } : {}) })}` : ""}`}
             >
               See all articles
             </Link>

@@ -90,6 +90,7 @@ Project goals:
 - [x] Display original titles, source metadata, optional source-provided excerpts, and dates clearly
 - [x] Limit the homepage preview to five articles and link to the filtered, paginated article archive
 - [x] Filter the homepage and article archive by platform/source and publication order
+- [x] Search article titles on the homepage, public archive, and admin review queues
 - [x] Add platform filtering and pagination to the public archive and admin review queues
 - [ ] Support article detail pages for expanded reading
 - [x] Use server-rendered Supabase content to avoid client-side loading jank
