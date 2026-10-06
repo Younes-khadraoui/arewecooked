@@ -19,10 +19,10 @@ function formatReviewDate(value: string | null) {
 
 export function RejectedEntries({
   entries,
-  hasMore,
+  totalCount,
 }: {
   entries: RejectedEntry[];
-  hasMore: boolean;
+  totalCount: number;
 }) {
   if (entries.length === 0) {
     return (
@@ -38,9 +38,8 @@ export function RejectedEntries({
   return (
     <section aria-label="Rejected articles" className="mt-8">
       <p className="mb-4 text-xs text-muted-foreground">
-        {hasMore
-          ? "Showing the 20 most recently rejected articles."
-          : `${entries.length} rejected ${entries.length === 1 ? "article" : "articles"}.`}
+        Showing {entries.length} of {totalCount} rejected{" "}
+        {totalCount === 1 ? "article" : "articles"} on this page.
       </p>
       <ol className="m-0 grid list-none gap-4 p-0">
         {entries.map((entry) => (

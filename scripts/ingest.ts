@@ -22,6 +22,11 @@ type FeedDefinition = {
 type FeedResult = {
   entries: IngestionEntry[];
   retries: number;
+  diagnostics?: string[];
+};
+
+export type IngestionOptions = {
+  lookbackDays?: number;
 };
 
 type FeedAnomaly = {
@@ -209,12 +214,15 @@ function canonicalUrl(value: unknown): string | null {
   }
 }
 
-function inWindow(date: string | null, now: Date): boolean {
+function inWindow(date: string | null, now: Date, lookbackDays: number): boolean {
   if (!date) {
     return false;
   }
   const timestamp = new Date(date).getTime();
-  return timestamp >= now.getTime() - dayAgo && timestamp <= now.getTime();
+  return (
+    timestamp >= now.getTime() - lookbackDays * dayAgo &&
+    timestamp <= now.getTime()
+  );
 }
 
 function normalizeEntry(
@@ -224,6 +232,7 @@ function normalizeEntry(
   publishedValue: unknown,
   excerptValue: unknown,
   now: Date,
+  lookbackDays: number,
 ): IngestionEntry | null {
   const title = stringValue(titleValue);
   const originalUrl = canonicalUrl(urlValue);
@@ -234,7 +243,7 @@ function normalizeEntry(
     title.length > 500 ||
     !originalUrl ||
     !publishedAt ||
-    !inWindow(publishedAt, now)
+    !inWindow(publishedAt, now, lookbackDays)
   ) {
     return null;
   }
@@ -266,6 +275,7 @@ export function parseXmlFeed(
   text: string,
   feed: FeedDefinition,
   now: Date,
+  lookbackDays = 1,
 ): IngestionEntry[] {
   const parsed = xmlParser.parse(text);
   if (!isObject(parsed)) {
@@ -297,6 +307,7 @@ export function parseXmlFeed(
         : item.pubDate ?? item.published ?? item.updated,
       item.description ?? item.summary,
       now,
+      lookbackDays,
     );
     if (entry) {
       result.push(entry);
@@ -305,7 +316,12 @@ export function parseXmlFeed(
   return result;
 }
 
-function parseHackerNews(value: unknown, feed: FeedDefinition, now: Date) {
+function parseHackerNews(
+  value: unknown,
+  feed: FeedDefinition,
+  now: Date,
+  lookbackDays: number,
+) {
   if (!isObject(value) || !Array.isArray(value.hits)) {
     throw new Error("Hacker News returned an invalid search response.");
   }
@@ -317,7 +333,7 @@ function parseHackerNews(value: unknown, feed: FeedDefinition, now: Date) {
     }
     const points = typeof hit.points === "number" ? hit.points : 0;
     const postedAt = parseDate(hit.created_at);
-    if (points <= 150 || !inWindow(postedAt, now)) {
+    if (points <= 150 || !inWindow(postedAt, now, lookbackDays)) {
       continue;
     }
     const storyId = stringValue(hit.objectID);
@@ -334,6 +350,7 @@ function parseHackerNews(value: unknown, feed: FeedDefinition, now: Date) {
       postedAt,
       null,
       now,
+      lookbackDays,
     );
     if (entry) {
       result.push(entry);
@@ -342,7 +359,12 @@ function parseHackerNews(value: unknown, feed: FeedDefinition, now: Date) {
   return result;
 }
 
-function parseReddit(value: unknown, feed: FeedDefinition, now: Date) {
+function parseReddit(
+  value: unknown,
+  feed: FeedDefinition,
+  now: Date,
+  lookbackDays: number,
+) {
   if (
     !isObject(value) ||
     !isObject(value.data) ||
@@ -369,6 +391,7 @@ function parseReddit(value: unknown, feed: FeedDefinition, now: Date) {
       postedAt,
       post.selftext,
       now,
+      lookbackDays,
     );
     if (entry) {
       result.push(entry);
@@ -377,7 +400,12 @@ function parseReddit(value: unknown, feed: FeedDefinition, now: Date) {
   return result;
 }
 
-function parseHuggingFace(value: unknown, feed: FeedDefinition, now: Date) {
+function parseHuggingFace(
+  value: unknown,
+  feed: FeedDefinition,
+  now: Date,
+  lookbackDays: number,
+) {
   if (!Array.isArray(value)) {
     throw new Error("Hugging Face returned an invalid daily-papers response.");
   }
@@ -389,7 +417,8 @@ function parseHuggingFace(value: unknown, feed: FeedDefinition, now: Date) {
     }
     const details = paper.paper;
     const paperId = stringValue(details.id);
-    const publishedAt = paper.publishedAt ?? details.publishedAt;
+    const publishedAt =
+      paper.submittedOnDailyAt ?? paper.publishedAt ?? details.publishedAt;
     const entry = normalizeEntry(
       feed,
       details.title,
@@ -397,6 +426,7 @@ function parseHuggingFace(value: unknown, feed: FeedDefinition, now: Date) {
       publishedAt,
       details.summary,
       now,
+      lookbackDays,
     );
     if (entry) {
       result.push(entry);
@@ -405,18 +435,44 @@ function parseHuggingFace(value: unknown, feed: FeedDefinition, now: Date) {
   return result;
 }
 
-function requestUrl(feed: FeedDefinition, now: Date): URL {
+function requestUrl(
+  feed: FeedDefinition,
+  now: Date,
+  lookbackDays: number,
+  dailyPaperDate?: string,
+): URL {
   const url = new URL(feed.url);
   if (feed.format === "hacker-news") {
     url.searchParams.set("tags", "story");
     url.searchParams.set(
       "numericFilters",
-      `points>150,created_at_i>${Math.floor((now.getTime() - dayAgo) / 1000)}`,
+      `points>150,created_at_i>${Math.floor((now.getTime() - lookbackDays * dayAgo) / 1000)}`,
     );
     url.searchParams.set("query", "AI OR LLM OR Machine Learning");
-    url.searchParams.set("hitsPerPage", "100");
+    url.searchParams.set("hitsPerPage", lookbackDays === 1 ? "100" : "1000");
+  } else if (feed.format === "reddit") {
+    url.searchParams.set("t", lookbackDays === 1 ? "day" : "month");
+  } else if (feed.format === "hugging-face" && dailyPaperDate) {
+    url.searchParams.set("date", dailyPaperDate);
+  } else if (feed.kind === "arxiv" && lookbackDays > 1) {
+    url.searchParams.set("max_results", "1000");
   }
   return url;
+}
+
+function dailyPaperDates(now: Date, lookbackDays: number): string[] {
+  const start = new Date(now.getTime() - lookbackDays * dayAgo);
+  const cursor = new Date(
+    Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate()),
+  );
+  const end = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  const dates: string[] = [];
+
+  while (cursor.getTime() <= end) {
+    dates.push(cursor.toISOString().slice(0, 10));
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+  return dates;
 }
 
 const maximumFeedAttempts = 3;
@@ -487,12 +543,14 @@ export async function fetchWithRetry(
   throw new Error("Feed retry loop ended without a response.");
 }
 
-async function fetchFeed(
+async function fetchFeedAtUrl(
   feed: FeedDefinition,
+  url: URL,
   now: Date,
+  lookbackDays: number,
 ): Promise<FeedResult> {
   const { response, retries } = await fetchWithRetry(
-    requestUrl(feed, now),
+    url,
     {
       headers: {
         accept:
@@ -511,7 +569,15 @@ async function fetchFeed(
   }
 
   if (feed.format === "xml") {
-    return { entries: parseXmlFeed(await response.text(), feed, now), retries };
+    return {
+      entries: parseXmlFeed(
+        await response.text(),
+        feed,
+        now,
+        lookbackDays,
+      ),
+      retries,
+    };
   }
 
   let json: unknown;
@@ -521,12 +587,75 @@ async function fetchFeed(
     throw new Error("The feed response was not valid JSON.");
   }
   if (feed.format === "hacker-news") {
-    return { entries: parseHackerNews(json, feed, now), retries };
+    return { entries: parseHackerNews(json, feed, now, lookbackDays), retries };
   }
   if (feed.format === "reddit") {
-    return { entries: parseReddit(json, feed, now), retries };
+    return { entries: parseReddit(json, feed, now, lookbackDays), retries };
   }
-  return { entries: parseHuggingFace(json, feed, now), retries };
+  return { entries: parseHuggingFace(json, feed, now, lookbackDays), retries };
+}
+
+async function fetchFeed(
+  feed: FeedDefinition,
+  now: Date,
+  lookbackDays: number,
+): Promise<FeedResult> {
+  if (feed.format !== "hugging-face") {
+    return fetchFeedAtUrl(
+      feed,
+      requestUrl(feed, now, lookbackDays),
+      now,
+      lookbackDays,
+    );
+  }
+
+  const dates = dailyPaperDates(now, lookbackDays);
+  const entries: IngestionEntry[] = [];
+  const failedDates: string[] = [];
+  let retries = 0;
+  let successfulDates = 0;
+
+  for (let start = 0; start < dates.length; start += 4) {
+    const batch = dates.slice(start, start + 4);
+    const results = await Promise.allSettled(
+      batch.map((date) =>
+        fetchFeedAtUrl(
+          feed,
+          requestUrl(feed, now, lookbackDays, date),
+          now,
+          lookbackDays,
+        ),
+      ),
+    );
+
+    results.forEach((result, index) => {
+      if (result.status === "fulfilled") {
+        successfulDates += 1;
+        entries.push(...result.value.entries);
+        retries += result.value.retries;
+      } else {
+        failedDates.push(batch[index]);
+      }
+    });
+  }
+
+  if (successfulDates === 0) {
+    throw new Error(
+      `All ${dates.length} daily-paper date requests failed (${failedDates.join(", ")}).`,
+    );
+  }
+
+  return {
+    entries,
+    retries,
+    ...(failedDates.length > 0
+      ? {
+          diagnostics: [
+            `Daily-paper requests failed for ${failedDates.length} date${failedDates.length === 1 ? "" : "s"}: ${failedDates.join(", ")}.`,
+          ],
+        }
+      : {}),
+  };
 }
 
 function requireConfiguration() {
@@ -675,7 +804,19 @@ function uniqueEntries(entries: IngestionEntry[]): IngestionEntry[] {
   return [...new Map(entries.map((entry) => [entry.original_url, entry])).values()];
 }
 
-export async function runIngestion(now = new Date()): Promise<IngestionSummary> {
+export async function runIngestion(
+  now = new Date(),
+  options: IngestionOptions = {},
+): Promise<IngestionSummary> {
+  const lookbackDays = options.lookbackDays ?? 1;
+  if (
+    !Number.isInteger(lookbackDays) ||
+    lookbackDays < 1 ||
+    lookbackDays > 30
+  ) {
+    throw new Error("The ingestion lookback must be a whole number from 1 to 30 days.");
+  }
+
   requireConfiguration();
   const startedAt = now.toISOString();
   const runId = await createRun(startedAt);
@@ -689,7 +830,7 @@ export async function runIngestion(now = new Date()): Promise<IngestionSummary> 
 
   try {
     const results = await Promise.allSettled(
-      feeds.map((feed) => fetchFeed(feed, now)),
+      feeds.map((feed) => fetchFeed(feed, now, lookbackDays)),
     );
     const candidates: IngestionEntry[] = [];
 
@@ -704,6 +845,13 @@ export async function runIngestion(now = new Date()): Promise<IngestionSummary> 
             feed: feed.id,
             message: `Feed recovered after ${result.value.retries} ${result.value.retries === 1 ? "retry" : "retries"}.`,
             severity: "warning",
+          });
+        }
+        for (const message of result.value.diagnostics ?? []) {
+          summary.anomalies.push({
+            feed: feed.id,
+            message,
+            severity: "error",
           });
         }
       } else {
@@ -729,7 +877,7 @@ export async function runIngestion(now = new Date()): Promise<IngestionSummary> 
         : null;
     await updateRun(runId, summary, new Date().toISOString(), finalError);
     console.info(
-      `Ingestion ${summary.status}: ${summary.feedsParsed}/${feeds.length} feeds parsed, ${summary.entriesFound} entries found, ${summary.entriesInserted} inserted, ${summary.anomalies.length} feed ${summary.anomalies.length === 1 ? "diagnostic" : "diagnostics"}.`,
+      `${lookbackDays === 1 ? "Ingestion" : `Historical seed (${lookbackDays} days)`} ${summary.status}: ${summary.feedsParsed}/${feeds.length} feeds parsed, ${summary.entriesFound} entries found, ${summary.entriesInserted} inserted, ${summary.anomalies.length} feed ${summary.anomalies.length === 1 ? "diagnostic" : "diagnostics"}.`,
     );
     return summary;
   } catch (error) {

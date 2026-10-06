@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/auth/admin";
 import { createClient } from "@/lib/supabase/server";
 import { ReviewQueue } from "@/app/admin/(protected)/review-queue";
@@ -6,6 +7,41 @@ import { EntryDetailsEditor } from "@/app/admin/(protected)/entry-details-editor
 import { PublishedEntryActions } from "@/app/admin/(protected)/published-entry-actions";
 import { RejectedEntries } from "@/app/admin/(protected)/rejected-entries";
 import { SystemHealth } from "@/app/admin/(protected)/system-health";
+import { ArticleFilters } from "@/components/articles/article-filters";
+import { Pagination } from "@/components/pagination";
+import { findArticlePlatform } from "@/lib/article-platforms";
+
+const queuePageSize = 20;
+
+function adminFilterHref(status: "pending" | "rejected", platform: string) {
+  const params = new URLSearchParams();
+  if (status === "rejected") {
+    params.set("status", status);
+  }
+  if (platform) {
+    params.set("platform", platform);
+  }
+  const query = params.toString();
+  return query ? `/admin?${query}` : "/admin";
+}
+
+function adminPageHref(
+  page: number,
+  status: "pending" | "rejected",
+  platform: string,
+) {
+  const params = new URLSearchParams();
+  if (status === "rejected") {
+    params.set("status", status);
+  }
+  if (platform) {
+    params.set("platform", platform);
+  }
+  if (page > 1) {
+    params.set("page", String(page));
+  }
+  return `/admin?${params.toString()}`;
+}
 
 export const metadata = {
   title: "Admin — Are We Cooked Yet?",
@@ -15,36 +51,58 @@ export const metadata = {
 export default async function AdminPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string | string[] }>;
+  searchParams: Promise<{
+    page?: string | string[];
+    platform?: string | string[];
+    status?: string | string[];
+  }>;
 }) {
   const claims = await requireAdmin();
   const supabase = await createClient();
   const params = await searchParams;
   const activeFilter = params.status === "rejected" ? "rejected" : "pending";
+  const platformValue = typeof params.platform === "string" ? params.platform : "";
+  const platform = findArticlePlatform(platformValue);
+  const requestedPage =
+    typeof params.page === "string" && /^\d+$/.test(params.page)
+      ? Math.max(1, Number(params.page))
+      : 1;
+  let queueQuery = supabase
+    .from("entries")
+    .select(
+      "id,title,source_name,original_url,source_excerpt,feed_kind,published_at,created_at,review_notes,reviewed_at",
+      { count: "exact" },
+    )
+    .eq("status", activeFilter)
+    .is("deleted_at", null);
+  if (platform) {
+    queueQuery = queueQuery.in("source_name", [...platform.sourceNames]);
+  }
+  queueQuery = queueQuery
+    .order(activeFilter === "pending" ? "created_at" : "reviewed_at", {
+      ascending: activeFilter === "pending",
+      nullsFirst: false,
+    })
+    .range((requestedPage - 1) * queuePageSize, requestedPage * queuePageSize - 1);
+
   const [
-    pendingResult,
-    rejectedResult,
+    queueResult,
+    pendingCountResult,
+    rejectedCountResult,
     publishedResult,
     cronLogsResult,
   ] = await Promise.all([
+    queueQuery,
     supabase
       .from("entries")
-      .select(
-        "id,title,source_name,original_url,source_excerpt,feed_kind,published_at,created_at",
-      )
+      .select("id", { count: "exact", head: true })
       .eq("status", "pending")
-      .is("deleted_at", null)
-      .order("created_at", { ascending: true })
-      .limit(101),
+      .is("deleted_at", null),
     supabase
       .from("entries")
-      .select(
-        "id,title,source_name,original_url,review_notes,reviewed_at",
-      )
+      .select("id", { count: "exact", head: true })
       .eq("status", "rejected")
-      .is("deleted_at", null)
-      .order("reviewed_at", { ascending: false, nullsFirst: false })
-      .limit(21),
+      .is("deleted_at", null),
     supabase
       .from("entries")
       .select("id,title,source_name,original_url,published_at")
@@ -60,11 +118,20 @@ export default async function AdminPage({
       .order("started_at", { ascending: false })
       .limit(20),
   ]);
-  const entries = (pendingResult.data ?? []).slice(0, 100);
-  const rejectedEntries = (rejectedResult.data ?? []).slice(0, 20);
+  const entries = (queueResult.data ?? []).slice(0, queuePageSize);
   const publishedEntries = (publishedResult.data ?? []).slice(0, 20);
   const error =
-    pendingResult.error ?? rejectedResult.error ?? publishedResult.error;
+    queueResult.error ??
+    pendingCountResult.error ??
+    rejectedCountResult.error ??
+    publishedResult.error;
+  const totalCount = queueResult.count ?? 0;
+  const totalPages = Math.max(1, Math.ceil(totalCount / queuePageSize));
+  if (!error && requestedPage > totalPages) {
+    redirect(
+      adminPageHref(totalPages, activeFilter, platform?.value ?? ""),
+    );
+  }
 
   return (
     <section className="py-12">
@@ -91,12 +158,9 @@ export default async function AdminPage({
                 ? "border-accent/50 bg-accent/10 text-foreground"
                 : "border-border bg-panel text-muted-foreground hover:text-foreground"
             }`}
-            href="/admin"
+            href={adminFilterHref("pending", platform?.value ?? "")}
           >
-            Pending{" "}
-            {(pendingResult.data?.length ?? 0) > 100
-              ? "100+"
-              : (pendingResult.data?.length ?? 0)}
+            Pending {pendingCountResult.count ?? 0}
           </Link>
           <Link
             aria-current={activeFilter === "rejected" ? "page" : undefined}
@@ -105,12 +169,9 @@ export default async function AdminPage({
                 ? "border-accent/50 bg-accent/10 text-foreground"
                 : "border-border bg-panel text-muted-foreground hover:text-foreground"
             }`}
-            href="/admin?status=rejected"
+            href={adminFilterHref("rejected", platform?.value ?? "")}
           >
-            Rejected{" "}
-            {(rejectedResult.data?.length ?? 0) > 20
-              ? "20+"
-              : rejectedEntries.length}
+            Rejected {rejectedCountResult.count ?? 0}
           </Link>
         </nav>
       </div>
@@ -138,17 +199,23 @@ export default async function AdminPage({
         </div>
       ) : (
         <>
+          <ArticleFilters
+            action="/admin"
+            platform={platform?.value ?? ""}
+            status={activeFilter}
+          />
           {activeFilter === "pending" ? (
-            <ReviewQueue
-              entries={entries}
-              hasMore={(pendingResult.data?.length ?? 0) > 100}
-            />
+            <ReviewQueue entries={entries} totalCount={totalCount} />
           ) : (
-            <RejectedEntries
-              entries={rejectedEntries}
-              hasMore={(rejectedResult.data?.length ?? 0) > 20}
-            />
+            <RejectedEntries entries={entries} totalCount={totalCount} />
           )}
+          <Pagination
+            hrefForPage={(page) =>
+              adminPageHref(page, activeFilter, platform?.value ?? "")
+            }
+            page={requestedPage}
+            totalPages={totalPages}
+          />
 
           <SystemHealth
             error={cronLogsResult.error?.message ?? null}

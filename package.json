@@ -9,6 +9,7 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "ingest": "tsx scripts/ingest.ts",
+    "seed": "tsx scripts/seed.ts",
     "test:ingestion": "tsx --test scripts/ingest.test.ts",
     "grant-admin": "node --env-file=.env.local scripts/grant-admin.mjs"
   },

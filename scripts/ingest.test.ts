@@ -150,6 +150,9 @@ test("runs all feed adapters, deduplicates URLs, inserts pending entries, and lo
   const nowSeconds = Math.floor(now.getTime() / 1000);
   let openAiAttempts = 0;
   const completedRuns: Record<string, unknown>[] = [];
+  const feedRequests: URL[] = [];
+  const insertedEntries: Record<string, unknown>[] = [];
+  const storedUrls = new Set<string>();
 
   process.env.NEXT_PUBLIC_SUPABASE_URL = "https://project.example";
   process.env.SUPABASE_SERVICE_ROLE_KEY = "test-service-key";
@@ -165,21 +168,59 @@ test("runs all feed adapters, deduplicates URLs, inserts pending entries, and lo
         return new Response(null, { status: 204 });
       }
       if (url.pathname.endsWith("/entries") && init?.method === "POST") {
-        const entries = JSON.parse(String(init.body)) as unknown[];
-        return Response.json(entries);
+        const entries = JSON.parse(String(init.body)) as Record<string, unknown>[];
+        const newEntries = entries.filter((entry) => {
+          const originalUrl = entry.original_url;
+          if (typeof originalUrl !== "string" || storedUrls.has(originalUrl)) {
+            return false;
+          }
+          storedUrls.add(originalUrl);
+          insertedEntries.push(entry);
+          return true;
+        });
+        return Response.json(newEntries);
       }
       throw new Error(`Unexpected Supabase request: ${init?.method} ${url.pathname}`);
     }
 
+    feedRequests.push(url);
     if (url.hostname === "hn.algolia.com") {
       return Response.json({
         hits: [
+          {
+            created_at: now.toISOString(),
+            objectID: "hn-below-threshold",
+            points: 150,
+            title: "Below Hacker News score threshold",
+            url: "https://example.com/hn-below-threshold",
+          },
           {
             created_at: now.toISOString(),
             objectID: "hn-1",
             points: 200,
             title: "Hacker News item",
             url: "https://example.com/hn",
+          },
+          {
+            created_at: new Date(now.getTime() - 25 * 60 * 60 * 1000).toISOString(),
+            objectID: "hn-old",
+            points: 500,
+            title: "Outside the Hacker News window",
+            url: "https://example.com/hn-old",
+          },
+          {
+            created_at: new Date(now.getTime() - 20 * 24 * 60 * 60 * 1000).toISOString(),
+            objectID: "hn-historic",
+            points: 200,
+            title: "Historical Hacker News item",
+            url: "https://example.com/hn-historic",
+          },
+          {
+            created_at: new Date(now.getTime() - 31 * 24 * 60 * 60 * 1000).toISOString(),
+            objectID: "hn-outside-seed",
+            points: 500,
+            title: "Outside the seed window",
+            url: "https://example.com/hn-outside-seed",
           },
         ],
       });
@@ -195,9 +236,50 @@ test("runs all feed adapters, deduplicates URLs, inserts pending entries, and lo
               data: {
                 created_utc: nowSeconds - 60,
                 permalink: `/r/${subreddit}/comments/post-1`,
+                score: 1,
                 selftext: "",
                 stickied: false,
                 title: `${subreddit} post`,
+              },
+            },
+            {
+              data: {
+                created_utc: nowSeconds - 25 * 60 * 60,
+                permalink: `/r/${subreddit}/comments/post-old`,
+                score: 100,
+                selftext: "",
+                stickied: false,
+                title: `${subreddit} post outside the time window`,
+              },
+            },
+            {
+              data: {
+                created_utc: nowSeconds - 20 * 24 * 60 * 60,
+                permalink: `/r/${subreddit}/comments/post-historic`,
+                score: 1,
+                selftext: "",
+                stickied: false,
+                title: `${subreddit} historical post`,
+              },
+            },
+            {
+              data: {
+                created_utc: nowSeconds - 31 * 24 * 60 * 60,
+                permalink: `/r/${subreddit}/comments/post-outside-seed`,
+                score: 100,
+                selftext: "",
+                stickied: false,
+                title: `${subreddit} post outside the seed window`,
+              },
+            },
+            {
+              data: {
+                created_utc: nowSeconds - 60,
+                permalink: `/r/${subreddit}/comments/post-stickied`,
+                score: 100,
+                selftext: "",
+                stickied: true,
+                title: `${subreddit} stickied post`,
               },
             },
           ],
@@ -205,14 +287,19 @@ test("runs all feed adapters, deduplicates URLs, inserts pending entries, and lo
       });
     }
     if (url.hostname === "huggingface.co") {
+      const paperDate = url.searchParams.get("date");
+      if (paperDate !== "2026-10-06" && paperDate !== "2026-09-10") {
+        return Response.json([]);
+      }
       return Response.json([
         {
           paper: {
-            id: "2610.12345",
-            publishedAt: now.toISOString(),
+            id: paperDate === "2026-10-06" ? "2610.12345" : "2609.98765",
+            publishedAt: "2026-10-01T00:00:00.000Z",
             summary: "Original paper abstract",
-            title: "Hugging Face paper",
+            title: paperDate === "2026-10-06" ? "Hugging Face paper" : "Historical Hugging Face paper",
           },
+          submittedOnDailyAt: `${paperDate}T00:00:00.000Z`,
         },
       ]);
     }
@@ -239,6 +326,85 @@ test("runs all feed adapters, deduplicates URLs, inserts pending entries, and lo
     assert.equal(summary.feedsParsed, 9);
     assert.equal(summary.entriesFound, 9);
     assert.equal(summary.entriesInserted, 5);
+    const dailyInsertedCount = insertedEntries.length;
+    const hackerNewsRequest = feedRequests.find(
+      (url) => url.hostname === "hn.algolia.com",
+    );
+    assert.ok(hackerNewsRequest);
+    assert.equal(hackerNewsRequest.searchParams.get("tags"), "story");
+    assert.equal(
+      hackerNewsRequest.searchParams.get("numericFilters"),
+      `points>150,created_at_i>${nowSeconds - 24 * 60 * 60}`,
+    );
+    assert.equal(
+      hackerNewsRequest.searchParams.get("query"),
+      "AI OR LLM OR Machine Learning",
+    );
+    assert.equal(hackerNewsRequest.searchParams.get("hitsPerPage"), "100");
+
+    const redditRequests = feedRequests.filter(
+      (url) => url.hostname === "www.reddit.com",
+    );
+    assert.equal(redditRequests.length, 2);
+    for (const request of redditRequests) {
+      assert.equal(request.searchParams.get("t"), "day");
+      assert.equal(request.searchParams.get("limit"), "100");
+    }
+    const redditEntries = insertedEntries.filter(
+      (entry) => entry.feed_kind === "reddit",
+    );
+    assert.equal(redditEntries.length, 2);
+    assert.deepEqual(
+      redditEntries.map((entry) => entry.title).sort(),
+      ["LocalLLaMA post", "MachineLearning post"],
+    );
+    const dailyPaperRequests = feedRequests.filter(
+      (url) => url.hostname === "huggingface.co",
+    );
+    assert.deepEqual(
+      dailyPaperRequests.map((url) => url.searchParams.get("date")).sort(),
+      ["2026-10-05", "2026-10-06"],
+    );
+
+    const seedSummary = await runIngestion(now, { lookbackDays: 30 });
+    assert.equal(seedSummary.status, "succeeded");
+    assert.equal(seedSummary.feedsParsed, 9);
+    assert.equal(seedSummary.entriesFound, 16);
+    assert.equal(seedSummary.entriesInserted, 7);
+    assert.deepEqual(seedSummary.anomalies, []);
+    const seedHackerNewsRequest = feedRequests.find(
+      (url) =>
+        url.hostname === "hn.algolia.com" &&
+        url.searchParams.get("hitsPerPage") === "1000",
+    );
+    assert.ok(seedHackerNewsRequest);
+    assert.equal(
+      seedHackerNewsRequest.searchParams.get("numericFilters"),
+      `points>150,created_at_i>${nowSeconds - 30 * 24 * 60 * 60}`,
+    );
+    const seedRedditRequests = feedRequests.filter(
+      (url) =>
+        url.hostname === "www.reddit.com" &&
+        url.searchParams.get("t") === "month",
+    );
+    assert.equal(seedRedditRequests.length, 2);
+    const seedPaperDates = feedRequests
+      .filter((url) => url.hostname === "huggingface.co")
+      .slice(dailyPaperRequests.length)
+      .map((url) => url.searchParams.get("date"));
+    assert.equal(seedPaperDates.length, 31);
+    assert.ok(seedPaperDates.includes("2026-09-06"));
+    assert.ok(seedPaperDates.includes("2026-10-06"));
+    assert.equal(
+      insertedEntries.length - dailyInsertedCount,
+      seedSummary.entriesInserted,
+    );
+    assert.equal(
+      insertedEntries.filter((entry) =>
+        /historical/i.test(String(entry.title)),
+      ).length,
+      4,
+    );
     assert.deepEqual(summary.anomalies, [
       {
         feed: "openai",
@@ -248,6 +414,8 @@ test("runs all feed adapters, deduplicates URLs, inserts pending entries, and lo
     ]);
     assert.equal(completedRuns[0]?.status, "succeeded");
     assert.equal(completedRuns[0]?.anomaly_count, 1);
+    assert.equal(completedRuns[1]?.status, "succeeded");
+    assert.equal(completedRuns[1]?.anomaly_count, 0);
   } finally {
     globalThis.fetch = originalFetch;
     if (originalUrl === undefined) {

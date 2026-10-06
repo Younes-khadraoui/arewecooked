@@ -127,10 +127,10 @@ function ReviewCard({
 
 export function ReviewQueue({
   entries,
-  hasMore,
+  totalCount,
 }: {
   entries: ReviewQueueEntry[];
-  hasMore: boolean;
+  totalCount: number;
 }) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const forms = useRef<Array<HTMLFormElement | null>>([]);
@@ -206,9 +206,8 @@ export function ReviewQueue({
     <section aria-label="Pending articles" className="mt-8">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <p className="m-0 text-xs text-muted-foreground">
-          {hasMore
-            ? "Showing the first 100 pending entries."
-            : `${entries.length} ${entries.length === 1 ? "entry" : "entries"} to review.`}
+          Showing {entries.length} of {totalCount} pending{" "}
+          {totalCount === 1 ? "entry" : "entries"} on this page.
         </p>
         <p className="m-0 hidden text-xs text-subtle sm:block">
           <kbd className="rounded border border-border px-1.5 py-1 font-mono">J</kbd>

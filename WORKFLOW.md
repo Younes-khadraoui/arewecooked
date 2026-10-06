@@ -88,9 +88,12 @@ Project goals:
 - [x] Sort entries chronologically by publication time or freshness signal
 - [x] Render a minimal but premium article card style
 - [x] Display original titles, source metadata, optional source-provided excerpts, and dates clearly
+- [x] Limit the homepage preview to five articles and link to the filtered, paginated article archive
+- [x] Filter the homepage and article archive by platform/source and publication order
+- [x] Add platform filtering and pagination to the public archive and admin review queues
 - [ ] Support article detail pages for expanded reading
 - [x] Use server-rendered Supabase content to avoid client-side loading jank
-- [ ] Ensure semantic HTML and accessibility compliance across public pages
+- [x] Ensure semantic HTML and keyboard accessibility across public pages
 
 ### Public UX principles
 - Fast first render, no loading skeletons on initial page load
@@ -106,7 +109,7 @@ Project goals:
 - [x] Create feed fetcher abstraction for RSS, Atom, and JSON endpoints
 - [x] Normalize metadata into a single internal content shape
 - [x] Deduplicate against the database using `original_url`
-- [ ] Filter out non-relevant low-quality entries
+- [x] Filter out non-relevant low-quality entries (Hacker News requires >150 points and AI-related query; Reddit uses the Top 24h listing, excluding stickied and out-of-window posts)
 - [x] Enqueue or directly insert valid rows with default `status: 'pending'`
 - [x] Log batch execution details to `cron_logs`
 - [x] Handle HTTP failures and rate-limit anomalies with human-readable diagnostics
@@ -144,6 +147,7 @@ Project goals:
 - [x] Support confirmed soft-delete and hard-delete operations for published records
 - [x] Add keyboard shortcuts: `J/K` for navigation, `A` for approve, `X` for reject
 - [x] Add pending/rejected status filters, audit view, and queue empty/error states
+- [x] Add platform filters and pagination to pending/rejected admin queues
 - [x] Expose admin reliability logs and ingestion run status
 
 ### Moderation behavior
@@ -191,7 +195,7 @@ Project goals:
 ## Milestone 8: Launch Readiness
 
 ### Checklist
-- [ ] Seed historical content for the last 30 days via a dedicated utility command (`npm run seed`)
+- [x] Add a dedicated 30-day historical seed utility (`npm run seed`) with source-supported date ranges and idempotent inserts
 - [ ] Validate feed quality and dedupe behavior against historical data
 - [ ] Confirm the public site renders correctly in light and dark modes
 - [ ] Validate admin moderation flows and keyboard interactions
