@@ -17,7 +17,7 @@ export type FeedKind =
   | "arxiv";
 export type CronRunStatus = "running" | "succeeded" | "partial" | "failed";
 
-export interface EntryRow {
+export type EntryRow = {
   id: string;
   title: string;
   source_name: string;
@@ -32,9 +32,9 @@ export interface EntryRow {
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
-}
+};
 
-export interface EntryInsert {
+export type EntryInsert = {
   id?: string;
   title: string;
   source_name: string;
@@ -49,11 +49,11 @@ export interface EntryInsert {
   created_at?: string;
   updated_at?: string;
   deleted_at?: string | null;
-}
+};
 
 export type EntryUpdate = Partial<EntryInsert>;
 
-export interface CronLogRow {
+export type CronLogRow = {
   id: string;
   started_at: string;
   completed_at: string | null;
@@ -64,9 +64,9 @@ export interface CronLogRow {
   anomalies: Json;
   status: CronRunStatus;
   error_message: string | null;
-}
+};
 
-export interface CronLogInsert {
+export type CronLogInsert = {
   id?: string;
   started_at?: string;
   completed_at?: string | null;
@@ -77,7 +77,7 @@ export interface CronLogInsert {
   anomalies?: Json;
   status?: CronRunStatus;
   error_message?: string | null;
-}
+};
 
 export type CronLogUpdate = Partial<CronLogInsert>;
 
