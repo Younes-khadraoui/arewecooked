@@ -55,7 +55,7 @@ function adminPageHref(
 }
 
 export const metadata = {
-  title: "Admin — Are We Cooked Yet?",
+  title: "Admin — Are We Cooked?",
   robots: { index: false, follow: false },
 };
 

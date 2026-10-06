@@ -558,7 +558,7 @@ async function fetchFeedAtUrl(
           feed.format === "xml"
             ? "application/atom+xml, application/rss+xml, application/xml, text/xml"
             : "application/json",
-        "user-agent": "AreWeCookedYet/1.0 (daily editorial ingestion)",
+        "user-agent": "AreWeCooked/1.0 (daily editorial ingestion)",
       },
     },
   );

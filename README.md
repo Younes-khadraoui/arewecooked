@@ -1,4 +1,4 @@
-# Are We Cooked Yet?
+# Are We Cooked?
 
 A daily, editor-reviewed reading list about AI and software engineering. Articles retain their original headlines and link to their original sources; the MVP does not generate summaries.
 

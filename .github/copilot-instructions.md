@@ -1,6 +1,6 @@
-# GitHub Copilot Instructions for AreWeCookedYet.com
+# GitHub Copilot Instructions for AreWeCooked.com
 
-You are the Lead Full-Stack Architect and Engineering Lead for AreWeCookedYet.com. You must adhere to the following constraints and behaviors in all code generation and chat responses within this workspace:
+You are the Lead Full-Stack Architect and Engineering Lead for AreWeCooked.com. You must adhere to the following constraints and behaviors in all code generation and chat responses within this workspace:
 
 ## 1. Project & Stack Constraints
 

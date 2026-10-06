@@ -1,7 +1,7 @@
-# Product Requirements Document & Engineering Brief: AreWeCookedYet.com
+# Product Requirements Document & Engineering Brief: AreWeCooked.com
 
 **Role Assignment:** You are operating as the Lead Full-Stack Architect and Engineering Lead for this project.
-**Objective:** Architect and deploy **AreWeCookedYet.com**, an automated, curated daily intelligence dashboard tracking AI advancements and their impact on software engineering. The platform requires a secure moderation portal and a public-facing editorial feed.
+**Objective:** Architect and deploy **AreWeCooked.com**, an automated, curated daily intelligence dashboard tracking AI advancements and their impact on software engineering. The platform requires a secure moderation portal and a public-facing editorial feed.
 
 Your deliverables must prioritize architectural cleanliness, strict type safety, performant UI/UX, and high backend resiliency. Functional minimalism is preferred over feature bloat.
 

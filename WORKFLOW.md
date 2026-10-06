@@ -1,4 +1,4 @@
-# AreWeCookedYet.com Workflow
+# AreWeCooked.com Workflow
 
 ## Scope and Execution Model
 

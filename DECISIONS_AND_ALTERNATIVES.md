@@ -1,6 +1,6 @@
 # Decisions and Alternatives
 
-## ADR-001: Architecture and Implementation Decisions for AreWeCookedYet.com
+## ADR-001: Architecture and Implementation Decisions for AreWeCooked.com
 
 - Status: Accepted for MVP definition
 - Related requirement source: `PRD.md`

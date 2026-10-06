@@ -33,7 +33,7 @@ function buildPageHref(
 }
 
 export const metadata = {
-  title: "All articles — Are We Cooked Yet?",
+  title: "All articles — Are We Cooked?",
   description:
     "Browse the editor-reviewed AI and engineering reading list by platform and publication date.",
 };
@@ -99,7 +99,7 @@ export default async function ArticlesPage({
       </a>
       <header className="mx-auto flex min-h-[82px] w-full max-w-[1120px] items-center justify-between border-b border-border px-5 sm:px-6">
         <Link
-          aria-label="Are We Cooked Yet home"
+          aria-label="Are We Cooked home"
           className="flex items-center gap-2.5"
           href="/"
         >
@@ -110,7 +110,7 @@ export default async function ArticlesPage({
             aw
           </span>
           <span className="text-[14px] font-semibold tracking-[-0.025em]">
-            Are We Cooked Yet?
+            Are We Cooked?
           </span>
         </Link>
         <ThemeToggle />
@@ -157,7 +157,7 @@ export default async function ArticlesPage({
 
       <footer className="mx-auto flex min-h-[72px] w-full max-w-[1120px] items-center justify-between border-t border-border px-5 text-[11px] text-subtle sm:px-6">
         <Link className="font-semibold text-muted-foreground" href="/">
-          Are We Cooked Yet?
+          Are We Cooked?
         </Link>
         <span>Good signal. Better coffee.</span>
       </footer>

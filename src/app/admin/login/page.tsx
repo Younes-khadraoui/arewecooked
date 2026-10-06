@@ -5,7 +5,7 @@ import { LoginForm } from "@/app/admin/login/login-form";
 import { getAdminClaims } from "@/lib/auth/admin";
 
 export const metadata: Metadata = {
-  title: "Admin sign in — Are We Cooked Yet?",
+  title: "Admin sign in — Are We Cooked?",
   robots: { index: false, follow: false },
 };
 
@@ -22,7 +22,7 @@ export default async function AdminLoginPage() {
           className="text-sm font-semibold tracking-[-0.025em] text-foreground"
           href="/"
         >
-          Are We Cooked Yet?
+          Are We Cooked?
         </Link>
       </header>
       <section className="mx-auto my-auto w-full max-w-[420px] py-14">

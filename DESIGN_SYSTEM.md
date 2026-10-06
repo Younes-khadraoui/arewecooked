@@ -2,7 +2,7 @@
 
 ## Objective
 
-The design system for AreWeCookedYet.com should feel premium, editorial, and developer-focused, grounded in a confident dark-first interface with a polished light-mode companion. The brand is intentionally warm and grounded—like a refined coffee bar for AI news and engineering signal discovery.
+The design system for AreWeCooked.com should feel premium, editorial, and developer-focused, grounded in a confident dark-first interface with a polished light-mode companion. The brand is intentionally warm and grounded—like a refined coffee bar for AI news and engineering signal discovery.
 
 This document defines the visual system, typography, spacing, and reusable patterns for implementation.
 
