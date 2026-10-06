@@ -2,6 +2,7 @@ import { requireAdmin } from "@/lib/auth/admin";
 import { createClient } from "@/lib/supabase/server";
 import { ReviewQueue } from "@/app/admin/(protected)/review-queue";
 import { EntryDetailsEditor } from "@/app/admin/(protected)/entry-details-editor";
+import { PublishedEntryActions } from "@/app/admin/(protected)/published-entry-actions";
 
 export const metadata = {
   title: "Admin — Are We Cooked Yet?",
@@ -135,6 +136,7 @@ export default async function AdminPage() {
                       originalUrl={entry.original_url}
                       title={entry.title}
                     />
+                    <PublishedEntryActions id={entry.id} />
                   </li>
                 ))}
               </ol>

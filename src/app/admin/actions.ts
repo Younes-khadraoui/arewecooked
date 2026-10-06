@@ -19,6 +19,10 @@ export interface EditEntryActionState {
   success: string | null;
 }
 
+export interface DeleteEntryActionState {
+  error: string | null;
+}
+
 export async function signIn(
   _previousState: AuthFormState,
   formData: FormData,
@@ -204,6 +208,67 @@ export async function updateEntryDetails(
   revalidatePath("/admin");
   revalidatePath("/");
   return { error: null, success: "Article details saved." };
+}
+
+export async function deletePublishedEntry(
+  _previousState: DeleteEntryActionState,
+  formData: FormData,
+): Promise<DeleteEntryActionState> {
+  const idValue = formData.get("id");
+  const operation = formData.get("operation");
+
+  if (
+    typeof idValue !== "string" ||
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      idValue,
+    ) ||
+    (operation !== "soft" && operation !== "hard")
+  ) {
+    return { error: "Invalid deletion request. Refresh the page and try again." };
+  }
+
+  await requireAdmin();
+
+  const supabase = await createClient();
+  const deleteQuery = supabase
+    .from("entries")
+    .delete()
+    .eq("id", idValue)
+    .eq("status", "published")
+    .is("deleted_at", null)
+    .select("id");
+
+  const { data, error } =
+    operation === "hard"
+      ? await deleteQuery.maybeSingle()
+      : await supabase
+          .from("entries")
+          .update({ deleted_at: new Date().toISOString() })
+          .eq("id", idValue)
+          .eq("status", "published")
+          .is("deleted_at", null)
+          .select("id")
+          .maybeSingle();
+
+  if (error) {
+    throw new Error(
+      operation === "hard"
+        ? "Unable to permanently delete the published entry."
+        : "Unable to remove the published entry from the public site.",
+      { cause: error },
+    );
+  }
+
+  if (!data) {
+    return {
+      error:
+        "This article is no longer published or was already removed. Refresh the page.",
+    };
+  }
+
+  revalidatePath("/admin");
+  revalidatePath("/");
+  return { error: null };
 }
 
 export async function signOut() {
