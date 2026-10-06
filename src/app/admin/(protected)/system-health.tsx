@@ -1,4 +1,5 @@
 import type { CronLogRow, Json } from "@/lib/database.types";
+import { IngestionTrigger } from "@/app/admin/(protected)/ingestion-trigger";
 
 type CronRun = Pick<
   CronLogRow,
@@ -112,13 +113,16 @@ export function SystemHealth({
             System health
           </h2>
         </div>
-        {latestRun ? (
-          <span
-            className={`rounded-full border px-3 py-1.5 text-xs font-medium capitalize ${statusStyles[latestRun.status]}`}
-          >
-            Latest run: {latestRun.status}
-          </span>
-        ) : null}
+        <div className="flex flex-col items-start gap-3 sm:items-end">
+          {latestRun ? (
+            <span
+              className={`rounded-full border px-3 py-1.5 text-xs font-medium capitalize ${statusStyles[latestRun.status]}`}
+            >
+              Latest run: {latestRun.status}
+            </span>
+          ) : null}
+          <IngestionTrigger />
+        </div>
       </div>
 
       {error ? (

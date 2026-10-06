@@ -111,7 +111,7 @@ Project goals:
 - [x] Log batch execution details to `cron_logs`
 - [x] Handle HTTP failures and rate-limit anomalies with human-readable diagnostics
 - [x] Gate the automation behind a strict `cron: '0 4 * * *'` schedule
-- [ ] Add a manual diagnostic trigger path for on-demand execution
+- [x] Add a manual diagnostic trigger path for on-demand execution
 
 ### v1 ingestion sources
 - OpenAI Blog
@@ -161,7 +161,7 @@ Project goals:
 - [x] Track parsed feed counts, anomalies, network issues, and final status
 - [x] Add a visible system health surface in the admin panel
 - [x] Provide badges for failed feed fetches, retries, and ingestion errors
-- [ ] Add manual invocation webhook or admin action to trigger the daily job for diagnostics
+- [x] Add manual invocation admin action to trigger the daily job for diagnostics
 - [x] Add a run history screen for recent execution health
 
 ### Logged telemetry fields

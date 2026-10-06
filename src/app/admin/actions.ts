@@ -23,6 +23,11 @@ export interface DeleteEntryActionState {
   error: string | null;
 }
 
+export interface IngestionTriggerActionState {
+  error: string | null;
+  success: string | null;
+}
+
 export async function signIn(
   _previousState: AuthFormState,
   formData: FormData,
@@ -269,6 +274,70 @@ export async function deletePublishedEntry(
   revalidatePath("/admin");
   revalidatePath("/");
   return { error: null };
+}
+
+export async function triggerDailyIngestion(
+): Promise<IngestionTriggerActionState> {
+  await requireAdmin();
+
+  const token = process.env.GITHUB_ACTIONS_TOKEN;
+  if (!token) {
+    return {
+      error:
+        "Manual runs are not configured. Set GITHUB_ACTIONS_TOKEN in the server environment.",
+      success: null,
+    };
+  }
+
+  const repository = "Younes-khadraoui/arewecooked";
+  const response = await fetch(
+    `https://api.github.com/repos/${repository}/actions/workflows/daily-ingestion.yml/dispatches`,
+    {
+      method: "POST",
+      headers: {
+        accept: "application/vnd.github+json",
+        authorization: `Bearer ${token}`,
+        "content-type": "application/json",
+        "X-GitHub-Api-Version": "2022-11-28",
+      },
+      body: JSON.stringify({ ref: "master" }),
+      signal: AbortSignal.timeout(15_000),
+    },
+  ).catch((error: unknown) => {
+    console.error(
+      "Failed to contact GitHub to dispatch daily ingestion:",
+      error instanceof Error ? error.message : error,
+    );
+    return null;
+  });
+
+  if (!response) {
+    return {
+      error: "Could not reach GitHub. Check the server connection and try again.",
+      success: null,
+    };
+  }
+
+  if (!response.ok) {
+    const detail = (await response.text()).slice(0, 500);
+    console.error(
+      `GitHub workflow dispatch failed with HTTP ${response.status}: ${detail}`,
+    );
+    return {
+      error:
+        response.status === 403
+          ? "GitHub denied the request. Check that GITHUB_ACTIONS_TOKEN can write Actions workflows."
+          : response.status === 404
+            ? "GitHub could not find the workflow. Confirm it exists on the master branch."
+            : `GitHub could not queue the run (HTTP ${response.status}). Check server logs for details.`,
+      success: null,
+    };
+  }
+
+  return {
+    error: null,
+    success: "Ingestion run queued. It will fetch the last 24 hours and ignore duplicate URLs.",
+  };
 }
 
 export async function signOut() {
