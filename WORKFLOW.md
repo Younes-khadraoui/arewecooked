@@ -143,7 +143,7 @@ Project goals:
 - [x] Allow inline editing of title and source URL for pending and published entries
 - [x] Support confirmed soft-delete and hard-delete operations for published records
 - [x] Add keyboard shortcuts: `J/K` for navigation, `A` for approve, `X` for reject
-- [ ] Add empty-state, filter-state, and error-state handling
+- [x] Add pending/rejected status filters, audit view, and queue empty/error states
 - [ ] Expose admin reliability logs and ingestion run status
 
 ### Moderation behavior

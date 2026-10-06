@@ -1,18 +1,26 @@
+import Link from "next/link";
 import { requireAdmin } from "@/lib/auth/admin";
 import { createClient } from "@/lib/supabase/server";
 import { ReviewQueue } from "@/app/admin/(protected)/review-queue";
 import { EntryDetailsEditor } from "@/app/admin/(protected)/entry-details-editor";
 import { PublishedEntryActions } from "@/app/admin/(protected)/published-entry-actions";
+import { RejectedEntries } from "@/app/admin/(protected)/rejected-entries";
 
 export const metadata = {
   title: "Admin — Are We Cooked Yet?",
   robots: { index: false, follow: false },
 };
 
-export default async function AdminPage() {
+export default async function AdminPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ status?: string | string[] }>;
+}) {
   const claims = await requireAdmin();
   const supabase = await createClient();
-  const [pendingResult, publishedResult] = await Promise.all([
+  const params = await searchParams;
+  const activeFilter = params.status === "rejected" ? "rejected" : "pending";
+  const [pendingResult, rejectedResult, publishedResult] = await Promise.all([
     supabase
       .from("entries")
       .select(
@@ -24,6 +32,15 @@ export default async function AdminPage() {
       .limit(101),
     supabase
       .from("entries")
+      .select(
+        "id,title,source_name,original_url,review_notes,reviewed_at",
+      )
+      .eq("status", "rejected")
+      .is("deleted_at", null)
+      .order("reviewed_at", { ascending: false, nullsFirst: false })
+      .limit(21),
+    supabase
+      .from("entries")
       .select("id,title,source_name,original_url,published_at")
       .eq("status", "published")
       .is("deleted_at", null)
@@ -31,8 +48,10 @@ export default async function AdminPage() {
       .limit(21),
   ]);
   const entries = (pendingResult.data ?? []).slice(0, 100);
+  const rejectedEntries = (rejectedResult.data ?? []).slice(0, 20);
   const publishedEntries = (publishedResult.data ?? []).slice(0, 20);
-  const error = pendingResult.error ?? publishedResult.error;
+  const error =
+    pendingResult.error ?? rejectedResult.error ?? publishedResult.error;
 
   return (
     <section className="py-12">
@@ -45,15 +64,42 @@ export default async function AdminPage() {
             Review queue
           </h1>
           <p className="mb-0 mt-2 text-sm text-muted-foreground">
-            Signed in as {claims.email ?? "admin"} · Pending articles only
+            Signed in as {claims.email ?? "admin"} ·{" "}
+            {activeFilter === "pending"
+              ? "Pending articles"
+              : "Rejected article history"}
           </p>
         </div>
-        <span className="rounded-full border border-border bg-panel px-3 py-1.5 text-xs text-muted-foreground">
-          {(pendingResult.data?.length ?? 0) > 100
-            ? "100+"
-            : (pendingResult.data?.length ?? 0)}{" "}
-          pending
-        </span>
+        <nav aria-label="Review queue filters" className="flex gap-2">
+          <Link
+            aria-current={activeFilter === "pending" ? "page" : undefined}
+            className={`rounded-full border px-3 py-1.5 text-xs transition-colors ${
+              activeFilter === "pending"
+                ? "border-accent/50 bg-accent/10 text-foreground"
+                : "border-border bg-panel text-muted-foreground hover:text-foreground"
+            }`}
+            href="/admin"
+          >
+            Pending{" "}
+            {(pendingResult.data?.length ?? 0) > 100
+              ? "100+"
+              : (pendingResult.data?.length ?? 0)}
+          </Link>
+          <Link
+            aria-current={activeFilter === "rejected" ? "page" : undefined}
+            className={`rounded-full border px-3 py-1.5 text-xs transition-colors ${
+              activeFilter === "rejected"
+                ? "border-accent/50 bg-accent/10 text-foreground"
+                : "border-border bg-panel text-muted-foreground hover:text-foreground"
+            }`}
+            href="/admin?status=rejected"
+          >
+            Rejected{" "}
+            {(rejectedResult.data?.length ?? 0) > 20
+              ? "20+"
+              : rejectedEntries.length}
+          </Link>
+        </nav>
       </div>
 
       {error ? (
@@ -79,10 +125,17 @@ export default async function AdminPage() {
         </div>
       ) : (
         <>
-          <ReviewQueue
-            entries={entries}
-            hasMore={(pendingResult.data?.length ?? 0) > 100}
-          />
+          {activeFilter === "pending" ? (
+            <ReviewQueue
+              entries={entries}
+              hasMore={(pendingResult.data?.length ?? 0) > 100}
+            />
+          ) : (
+            <RejectedEntries
+              entries={rejectedEntries}
+              hasMore={(rejectedResult.data?.length ?? 0) > 20}
+            />
+          )}
 
           <section aria-labelledby="published-articles-title" className="mt-14">
             <div className="flex flex-wrap items-end justify-between gap-4 border-b border-border pb-4">
